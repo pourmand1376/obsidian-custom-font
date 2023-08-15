@@ -65,7 +65,7 @@ export default class FontPlugin extends Plugin {
 
 				// Check if converted.css exists
 				const path =
-					".obsidian/plugins/obsidian-farsi-font/converted.css";
+					".obsidian/plugins/obsidian-custom-font/converted.css";
 
 				if (this.settings.font == this.settings.processed_font && await this.app.vault.adapter.exists(path))
 				{
@@ -95,6 +95,7 @@ export default class FontPlugin extends Plugin {
   					this.app.vault.adapter.write(path, cssString)
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
+					applyCss(cssString)
 				}
 			}
 		} catch (error) {
