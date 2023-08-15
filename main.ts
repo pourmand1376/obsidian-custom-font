@@ -103,7 +103,7 @@ export default class FontPlugin extends Plugin {
 		}
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new FontSettingTab(this.app, this));
 
 		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// Using this function will automatically remove the event listener when this plugin is disabled.
@@ -132,7 +132,7 @@ export default class FontPlugin extends Plugin {
 	}
 }
 
-class SampleSettingTab extends PluginSettingTab {
+class FontSettingTab extends PluginSettingTab {
 	plugin: FontPlugin;
 
 	constructor(app: App, plugin: FontPlugin) {
