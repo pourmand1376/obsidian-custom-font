@@ -61,18 +61,17 @@ export default class FontPlugin extends Plugin {
 				this.settings.font &&
 				this.settings.font.toLowerCase() != "none"
 			) {
-				console.log('loading %s',this.settings.font)
+				console.log('loading %s', this.settings.font)
 
 				// Check if converted.css exists
 				const path =
 					".obsidian/plugins/obsidian-custom-font/converted.css";
 
-				if (this.settings.font == this.settings.processed_font && await this.app.vault.adapter.exists(path))
-				{
+				if (this.settings.font == this.settings.processed_font && await this.app.vault.adapter.exists(path)) {
 					const convertedCSS = await this.app.vault.adapter.read(
 						path
 					);
-					console.log('css file %s loaded into memory',path)
+					console.log('css file %s loaded into memory', path)
 					applyCss(convertedCSS);
 				} else {
 					new Notice("Processing Font files");
@@ -81,7 +80,7 @@ export default class FontPlugin extends Plugin {
 
 					// Convert to base64
 					const base64 = arrayBufferToBase64(arrayBuffer);
-					const font_name = this.settings.font.replace('.woff','')
+					const font_name = this.settings.font.replace('.woff', '')
 					const cssString = `
   @font-face {
     font-family: '${font_name}';
@@ -92,10 +91,11 @@ export default class FontPlugin extends Plugin {
 	--font-family-editor: ${font_name};
   }
 `;
-  					this.app.vault.adapter.write(path, cssString)
+					this.app.vault.adapter.write(path, cssString)
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
-					applyCss(cssString)
+  					new Notice('Processing Font Finished')
+					await this.onload()
 				}
 			}
 		} catch (error) {
@@ -117,7 +117,7 @@ export default class FontPlugin extends Plugin {
 		);
 	}
 
-	onunload() {}
+	onunload() { }
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -144,12 +144,18 @@ class SampleSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 
 		containerEl.empty();
-		const path = this.app.vault.adapter.getFullPath(".obsidian/fonts");
-		const files = this.app.vault.adapter.fs.readdirSync(path);
 		const options = [{ name: "none", value: "None" }];
-		// Add files as options
-		for (const file of files) {
-			options.push({ name: file, value: file });
+		try {
+			const path = this.app.vault.adapter.getFullPath(".obsidian/fonts");
+			const files = this.app.vault.adapter.fs.readdirSync(path);
+
+			// Add files as options
+			for (const file of files) {
+				options.push({ name: file, value: file });
+			}
+		}
+		catch (error) {
+			console.log(error)
 		}
 		// Show combo box in UI somehow
 		new Setting(containerEl)
