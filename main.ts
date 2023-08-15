@@ -12,13 +12,13 @@ import {
 // Remember to rename these classes and interfaces!
 
 interface FontPluginSettings {
-	mySetting: string;
 	font: string;
+	converted: boolean;
 }
 
 const DEFAULT_SETTINGS: FontPluginSettings = {
-	mySetting: "default",
-	font: 'None'
+	font: 'None',
+	converted: false,
 };
 
 function arrayBufferToBase64(buffer) {
@@ -41,13 +41,13 @@ function applyCss(css) {
 	document.head.appendChild(style);
 
 	// Optional: Remove existing custom CSS
-	const existingStyle = document.getElementById("farsi-font-plugin-css");
+	const existingStyle = document.getElementById("custom-font-plugin-css");
 	if (existingStyle) {
 		existingStyle.remove();
 	}
 
 	// Give ID to new style tag
-	style.id = "farsi-font-plugin-css";
+	style.id = "custom-font-plugin-css";
 }
 
 export default class MyPlugin extends Plugin {
@@ -57,7 +57,7 @@ export default class MyPlugin extends Plugin {
 		await this.loadSettings();
 		
 		try{
-			if(this.settings.font.toLowerCase()!="none")
+			if(this.settings.font && this.settings.font.toLowerCase()!="none")
 			{
 				new Notice('setting is not none')
 				// const arrayBuffer = await app.vault.readBinary(file);
@@ -140,9 +140,9 @@ class SampleSettingTab extends PluginSettingTab {
 				for (const opt of options) {
 					dropdown.addOption(opt.name, opt.value);
 				}
-				dropdown.setValue(this.plugin.settings.mySetting)
+				dropdown.setValue(this.plugin.settings.font)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+					this.plugin.settings.font = value;
 					await this.plugin.saveSettings();
 				});
 			})
