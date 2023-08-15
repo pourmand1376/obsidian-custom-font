@@ -13,12 +13,12 @@ import {
 
 interface FontPluginSettings {
 	font: string;
-	converted: boolean;
+	processed_font: string;
 }
 
 const DEFAULT_SETTINGS: FontPluginSettings = {
-	font: 'None',
-	converted: false,
+	font: "None",
+	processed_font: "",
 };
 
 function arrayBufferToBase64(buffer) {
@@ -50,37 +50,56 @@ function applyCss(css) {
 	style.id = "custom-font-plugin-css";
 }
 
-export default class MyPlugin extends Plugin {
+export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 
 	async onload() {
 		await this.loadSettings();
-		
-		try{
-			if(this.settings.font && this.settings.font.toLowerCase()!="none")
-			{
-				new Notice('setting is not none')
-				// const arrayBuffer = await app.vault.readBinary(file);
 
-				// // Convert to base64
-				// const base64 = arrayBufferToBase64(arrayBuffer);
+		try {
+			if (
+				this.settings.font &&
+				this.settings.font.toLowerCase() != "none"
+			) {
+				console.log('loading %s',this.settings.font)
 
 				// Check if converted.css exists
-				const path = ".obsidian/plugins/obsidian-farsi-font/converted.css";
-				if (await this.app.vault.adapter.exists(path)) {
-					const convertedCSS = await this.app.vault.adapter.read(path);
-					new Notice("file loaded");
+				const path =
+					".obsidian/plugins/obsidian-farsi-font/converted.css";
+
+				if (this.settings.font == this.settings.processed_font && await this.app.vault.adapter.exists(path))
+				{
+					const convertedCSS = await this.app.vault.adapter.read(
+						path
+					);
+					console.log('css file %s loaded into memory',path)
 					applyCss(convertedCSS);
 				} else {
-					new Notice("file not found");
+					new Notice("Processing Font files");
+					const file = '.obsidian/fonts/' + this.settings.font
+					const arrayBuffer = await this.app.vault.adapter.readBinary(file);
+
+					// Convert to base64
+					const base64 = arrayBufferToBase64(arrayBuffer);
+					const font_name = this.settings.font.replace('.woff','')
+					const cssString = `
+  @font-face {
+    font-family: '${font_name}';
+    src: url(data:font/woff;base64,${base64})
+  }
+  :root {
+	--default-font: ${font_name};
+	--font-family-editor: ${font_name};
+  }
+`;
+  					this.app.vault.adapter.write(path, cssString)
+					this.settings.processed_font = this.settings.font
+					await this.saveSettings()
 				}
 			}
+		} catch (error) {
+			new Notice(error);
 		}
-		catch(error)
-		{
-			new Notice(error)
-		}
-		
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -113,9 +132,9 @@ export default class MyPlugin extends Plugin {
 }
 
 class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+	plugin: FontPlugin;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: FontPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -140,12 +159,12 @@ class SampleSettingTab extends PluginSettingTab {
 				for (const opt of options) {
 					dropdown.addOption(opt.name, opt.value);
 				}
-				dropdown.setValue(this.plugin.settings.font)
-				.onChange(async (value) => {
-					this.plugin.settings.font = value;
-					await this.plugin.saveSettings();
-				});
-			})
-			
+				dropdown
+					.setValue(this.plugin.settings.font)
+					.onChange(async (value) => {
+						this.plugin.settings.font = value;
+						await this.plugin.saveSettings();
+					});
+			});
 	}
 }
