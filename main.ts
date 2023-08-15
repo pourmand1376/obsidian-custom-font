@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 	processed_font: "",
 };
 
-function arrayBufferToBase64(buffer) {
+function arrayBufferToBase64(buffer:ArrayBuffer) {
 	let binary = "";
 	const bytes = new Uint8Array(buffer);
 	for (let i = 0; i < bytes.byteLength; i++) {
@@ -30,7 +30,7 @@ function arrayBufferToBase64(buffer) {
 	return btoa(binary);
 }
 
-function applyCss(css) {
+function applyCss(css:string) {
 	// Create style tag
 	const style = document.createElement("style");
 
