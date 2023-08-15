@@ -171,6 +171,7 @@ class SampleSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.font = value;
 						await this.plugin.saveSettings();
+						await this.plugin.onload()
 					});
 			});
 	}
