@@ -17,21 +17,23 @@ dev: ## run dev
 build: ## run build
 	npm run build
 
-create_and_push_tag: ## create and push tags
-	git tag $(tag)
-	git push origin $(tag)
-
 install_es_lint: ## install linter
 	npm install -g eslint
 
 lint: ## lint main.ts file
 	eslint main.ts
 
-create_patch_version:
+patch_version: ## create a new patch version
 	npm version patch
 
-create_minor_version:
+minor_version: ## create a new minor version
 	npm version minor
 
-create major_version:
+major_version: ## create a new major version
 	npm version major
+
+VERSION=$(shell jq -r '.version' manifest.json)
+release: ## create and push tags (release)
+	echo "Version is $(VERSION)"
+	git tag $(VERSION)
+	git push origin $(VERSION)
