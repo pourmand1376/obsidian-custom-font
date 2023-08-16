@@ -99,7 +99,7 @@ export default class FontPlugin extends Plugin {
 				}
 			}
 			else{ 
-				applyCss()
+				applyCss('')
 			}
 		} catch (error) {
 			new Notice(error);
@@ -147,6 +147,10 @@ class FontSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 
 		containerEl.empty();
+
+		const infoContainer = containerEl.createDiv();
+  		infoContainer.setText("In Order to set the font, copy your font into '.obsidian/fonts/' directory.");
+
 		const options = [{ name: "none", value: "None" }];
 		try {
 			const font_folder_path = '.obsidian/fonts'
@@ -159,6 +163,10 @@ class FontSettingTab extends PluginSettingTab {
 					options.push({ name: file_name, value: file_name });
 				}
 			}
+			else{
+				await this.app.vault.adapter.mkdir('.obsidian/fonts')
+			}
+			
 
 		}
 		catch (error) {
