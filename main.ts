@@ -99,7 +99,7 @@ export default class FontPlugin extends Plugin {
 				}
 			}
 			else{ 
-				applyCss('')
+				applyCss()
 			}
 		} catch (error) {
 			new Notice(error);
