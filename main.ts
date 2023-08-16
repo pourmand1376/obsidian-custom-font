@@ -98,6 +98,9 @@ export default class FontPlugin extends Plugin {
 					await this.onload()
 				}
 			}
+			else{ 
+				applyCss('')
+			}
 		} catch (error) {
 			new Notice(error);
 		}
