@@ -35,5 +35,5 @@ major_version: ## create a new major version
 VERSION=$(shell jq -r '.version' manifest.json)
 release: ## create and push tags (release)
 	echo "Version is $(VERSION)"
-	git tag $(VERSION)
-	git push origin $(VERSION)
+	git tag $(VERSION) --force
+	git push origin $(VERSION) --force
