@@ -20,3 +20,9 @@ build: ## run build
 create_and_push_tag: ## create and push tags
 	git tag $(tag)
 	git push origin $(tag)
+
+install_es_lint: ## install linter
+	npm install -g eslint
+
+lint: ## lint main.ts file
+	eslint main.ts
