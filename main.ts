@@ -21,7 +21,7 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 	processed_font: "",
 };
 
-function arrayBufferToBase64(buffer:ArrayBuffer) {
+function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
 	const bytes = new Uint8Array(buffer);
 	for (let i = 0; i < bytes.byteLength; i++) {
@@ -30,7 +30,7 @@ function arrayBufferToBase64(buffer:ArrayBuffer) {
 	return btoa(binary);
 }
 
-function applyCss(css:string) {
+function applyCss(css: string) {
 	// Create style tag
 	const style = document.createElement("style");
 
@@ -94,7 +94,7 @@ export default class FontPlugin extends Plugin {
 					this.app.vault.adapter.write(path, cssString)
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
-  					new Notice('Processing Font Finished')
+					new Notice('Processing Font Finished')
 					await this.onload()
 				}
 			}
@@ -140,19 +140,22 @@ class FontSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	display(): void {
+	async display() {
 		const { containerEl } = this;
 
 		containerEl.empty();
 		const options = [{ name: "none", value: "None" }];
 		try {
-			const path = this.app.vault.adapter.getFullPath(".obsidian/fonts");
-			const files = this.app.vault.adapter.fs.readdirSync(path);
+			const font_folder_path = '.obsidian/fonts'
+			if (await this.app.vault.adapter.exists(font_folder_path)) {
+				const files = await this.app.vault.adapter.list(font_folder_path)
 
-			// Add files as options
-			for (const file of files) {
-				options.push({ name: file, value: file });
+				// Add files as options
+				for (const file of files.files) {
+					options.push({ name: file, value: file });
+				}
 			}
+
 		}
 		catch (error) {
 			console.log(error)
