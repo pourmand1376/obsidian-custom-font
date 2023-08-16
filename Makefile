@@ -26,3 +26,12 @@ install_es_lint: ## install linter
 
 lint: ## lint main.ts file
 	eslint main.ts
+
+create_patch_version:
+	npm version patch
+
+create_minor_version:
+	npm version minor
+
+create major_version:
+	npm version major
