@@ -152,7 +152,8 @@ class FontSettingTab extends PluginSettingTab {
 
 				// Add files as options
 				for (const file of files.files) {
-					options.push({ name: file, value: file });
+					const file_name = file.split('/')[2]
+					options.push({ name: file_name, value: file_name });
 				}
 			}
 
