@@ -60,13 +60,14 @@ export default class FontPlugin extends Plugin {
 				console.log('loading %s', this.settings.font)
 				const font_family_name: string = this.settings.font.split('.')[0]
 				const font_extension_name: string = this.settings.font.split('.')[1]
-				const plugin_folder_path = '.obsidian/plugins/custom-font-loader'
+				const config_dir = this.app.vault.configDir
+				const plugin_folder_path = `${config_dir}/plugins/custom-font-loader`
 
 				const css_font_path = `${plugin_folder_path}/${this.settings.font.toLowerCase().replace('.', '_')}.css`
 
 				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
 					new Notice("Processing Font files");
-					const file = '.obsidian/fonts/' + this.settings.font
+					const file = `${config_dir}/fonts/${this.settings.font}`
 					const arrayBuffer = await this.app.vault.adapter.readBinary(file);
 
 					// Convert to base64
@@ -153,7 +154,7 @@ class FontSettingTab extends PluginSettingTab {
 
 		const options = [{ name: "none", value: "None" }];
 		try {
-			const font_folder_path = '.obsidian/fonts'
+			const font_folder_path = `${this.app.vault.configDir}/fonts`
 			if (!await this.app.vault.adapter.exists(font_folder_path)) {
 				await this.app.vault.adapter.mkdir(font_folder_path)
 			}
