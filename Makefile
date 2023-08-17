@@ -26,6 +26,7 @@ lint: ## lint main.ts file
 patch_version: ## create a new patch version
 	npm version patch
 	git push
+	release
 
 minor_version: ## create a new minor version
 	npm version minor
