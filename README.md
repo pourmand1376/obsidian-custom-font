@@ -1,6 +1,6 @@
 # Obsidian Custom Font Plugin
 
-Spice up your Obsidian notes with custom fonts! This handy plugin lets you easily use any font in your vault.
+Spice up your Obsidian notes with custom fonts! This plugin is created since currently obsidian doesn't support setting custom fonts easily. This is the case, especially in Android and IOS. 
 
 Plugin Settings Page
 
@@ -8,13 +8,13 @@ Plugin Settings Page
 
 ## Compatibility
 
-This plugin leverages base64 encoding to ensure maximum compatibility across platforms. The chosen font will work on all operating systems (Windows, MacOS, Linux, Android and IOS).
+This plugin leverages base64 encoding to ensure maximum compatibility across platforms. The chosen font will work on all operating systems (Windows, MacOS, Linux, Android, and IOS).
 
-So no matter what device you use Obsidian on, you can customize your notes with unique font styles! This way you won't event need to install the font on your operating system. 
+So no matter what device you use Obsidian on, you can customize your notes with unique font styles! This way you won't even need to install the font on your operating system. 
 
 ## To get started
 
-- Add your font files (.woff, .ttf and .woff2) to the `.obsidian/fonts` folder in your vault. 
+- Add your font files (.woff, .ttf, and .woff2) to your vault's `.obsidian/fonts` folder. 
 - Open the plugin settings and choose your desired font from the dropdown menu.
 - The selected font will now be applied across your entire vault. You can switch fonts anytime.
 
