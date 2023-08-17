@@ -94,7 +94,7 @@ export default class FontPlugin extends Plugin {
 
 					const base64_css = `@font-face{
 	font-family: '${font_family_name}';
-	src: url(data:${css_type_font[font_extension_name]} base64, ${base64});
+	src: url(data:${css_type_font[font_extension_name]};base64, ${base64});
 }` 
 					const cssString = `
 :root {
