@@ -143,7 +143,7 @@ class FontSettingTab extends PluginSettingTab {
 		const infoContainer = containerEl.createDiv();
 		infoContainer.setText("In Order to set the font, copy your font into '.obsidian/fonts/' directory.");
 
-		const options = [{ name: "none", value: "None" }];
+		const options = [{ name: "Don't Change", value: "None" }];
 		try {
 			const font_folder_path = '.obsidian/fonts'
 			if (await this.app.vault.adapter.exists(font_folder_path)) {
