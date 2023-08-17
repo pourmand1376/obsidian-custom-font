@@ -44,7 +44,6 @@ function applyCss(css: string,css_id:string) {
 	document.head.appendChild(style);
 
 	// Optional: Remove existing custom CSS
-	const css_id = 
 	const existingStyle = document.getElementById(css_id);
 	if (existingStyle) {
 		existingStyle.remove();
@@ -66,7 +65,7 @@ export default class FontPlugin extends Plugin {
 				this.settings.font.toLowerCase() != "none"
 			) {
 				console.log('loading %s', this.settings.font)
-				const font_name = this.settings.font.replace('.','_')
+				const font_family_name = this.settings.font.split('.')[0]
 				// Check if converted font exists
 				const path =
 					".obsidian/plugins/obsidian-custom-font/" + this.settings.font+'.css';
@@ -78,9 +77,9 @@ export default class FontPlugin extends Plugin {
 					console.log('css file %s loaded into memory', path)
 					applyCss(convertedCSS,"custom-font-plugin-css");
 					const cssString = `
-					:root {
-						--default-font: ${font_name};
-						--font-family-editor: ${font_name}
+					body {
+						--font-default: '${font_family_name}';
+						--font-family-editor: '${font_family_name}';
 					}
 					`;
 					applyCss(cssString,'custom-font-apply')
@@ -94,11 +93,11 @@ export default class FontPlugin extends Plugin {
 					
 					const base64_css = `
 					@font-face{
-						font-family: '${font_name}',
-						src: url(base64, ${base64})
+						font-family: '${font_family_name}';
+						src: url(base64, ${base64});
 					}`
 					this.app.vault.adapter.write(path,base64_css)
-					console.log('saved font %s into %s',font_name,path)
+					console.log('saved font %s into %s',font_family_name,path)
 
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
