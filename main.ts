@@ -70,22 +70,15 @@ export default class FontPlugin extends Plugin {
 				const font_family_name = this.settings.font.split('.')[0]
 				// Check if converted font exists
 				const path = `.obsidian/plugins/${plugin_name}/${this.settings.font}.css`
-
-				if (this.settings.font == this.settings.processed_font && await this.app.vault.adapter.exists(path)) {
-					const convertedCSS = await this.app.vault.adapter.read(
-						path
-					);
-					console.log('css file %s loaded into memory', path)
-					applyCss(convertedCSS,"custom-font-plugin-css");
-					const cssString = `
-					:root {
-						--font-default: '${font_family_name}';
-						--default-font: '${font_family_name}';
-						--font-family-editor: '${font_family_name}';
-					}
-					`;
-					applyCss(cssString,'custom-font-apply')
-				} else {
+				
+				const snippets_folder_path = '.obsidian/snippets'
+				if (!await this.app.vault.adapter.exists(snippets_folder_path))
+				{
+					await this.app.vault.adapter.mkdir(snippets_folder_path)
+				}
+				const css_font_path = `${snippets_folder_path}/${this.settings.font}.css`
+				
+				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
 					new Notice("Processing Font files");
 					const file = '.obsidian/fonts/' + this.settings.font
 					const arrayBuffer = await this.app.vault.adapter.readBinary(file);
@@ -97,21 +90,23 @@ export default class FontPlugin extends Plugin {
 					@font-face{
 						font-family: '${font_family_name}';
 						src: url(base64, ${base64});
-					}`
-					this.app.vault.adapter.write(path,base64_css)
+					}` 
+					const cssString = `
+					:root {
+						--font-default: ${font_family_name};
+						--default-font: ${font_family_name};
+						--font-family-editor: ${font_family_name};
+					}
+					`;
+					this.app.vault.adapter.write(css_font_path,base64_css+cssString)
 					console.log('saved font %s into %s',font_family_name,path)
 
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
-					new Notice('Processing Font Finished')
-					
-					await this.process_font()
+					new Notice("Font CSS saved into "+css_font_path)
 				}
 			}
-			else {
-				applyCss('',"custom-font-plugin-css")
-				applyCss('',"custom-font-apply")
-			}
+			
 		} catch (error) {
 			new Notice(error);
 		}
@@ -159,6 +154,10 @@ class FontSettingTab extends PluginSettingTab {
 		const options = [{ name: "none", value: "None" }];
 		try {
 			const font_folder_path = '.obsidian/fonts'
+			if (!await this.app.vault.adapter.exists(font_folder_path))
+			{
+				await this.app.vault.adapter.mkdir(font_folder_path)
+			}
 			if (await this.app.vault.adapter.exists(font_folder_path)) {
 				const files = await this.app.vault.adapter.list(font_folder_path)
 
@@ -167,9 +166,6 @@ class FontSettingTab extends PluginSettingTab {
 					const file_name = file.split('/')[2]
 					options.push({ name: file_name, value: file_name });
 				}
-			}
-			else {
-				await this.app.vault.adapter.mkdir('.obsidian/fonts')
 			}
 
 
