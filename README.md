@@ -2,6 +2,10 @@
 
 Spice up your Obsidian notes with custom fonts! This handy plugin lets you easily use any font in your vault.
 
+Plugin Settings Page
+
+![Plugin-settings-page](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.1.6/plugin-preview.gif)
+
 ## Compatibility
 
 This plugin leverages base64 encoding to ensure maximum compatibility across platforms. The chosen font will work on all operating systems (Windows, MacOS, Linux, Android and IOS).
