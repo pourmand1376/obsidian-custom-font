@@ -7,14 +7,6 @@ import {
 } from "obsidian";
 
 
-const my_css = `body {
-	--font-default: 'test',
-	--font-monospace-default: '',
-	--font-interface-override: '',
-	--font-text-override: '',
-	--font-monospace-override: '',	
-}`
-
 
 interface FontPluginSettings {
 	font: string;
@@ -35,7 +27,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	return btoa(binary);
 }
 
-function applyCss(css: string,css_id:string) {
+function applyCss(css: string, css_id: string) {
 	// Create style tag
 	const style = document.createElement("style");
 
@@ -58,7 +50,7 @@ function applyCss(css: string,css_id:string) {
 export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 
-	async process_font(){
+	async process_font() {
 		await this.loadSettings()
 		try {
 			if (
@@ -66,12 +58,12 @@ export default class FontPlugin extends Plugin {
 				this.settings.font.toLowerCase() != "none"
 			) {
 				console.log('loading %s', this.settings.font)
-				const font_family_name:string = this.settings.font.split('.')[0]
-				const font_extension_name:string = this.settings.font.split('.')[1]
+				const font_family_name: string = this.settings.font.split('.')[0]
+				const font_extension_name: string = this.settings.font.split('.')[1]
 				const plugin_folder_path = '.obsidian/plugins/custom-font-loader'
 
-				const css_font_path = `${plugin_folder_path}/${this.settings.font.toLowerCase().replace('.','_')}.css`
-				
+				const css_font_path = `${plugin_folder_path}/${this.settings.font.toLowerCase().replace('.', '_')}.css`
+
 				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
 					new Notice("Processing Font files");
 					const file = '.obsidian/fonts/' + this.settings.font
@@ -79,26 +71,26 @@ export default class FontPlugin extends Plugin {
 
 					// Convert to base64
 					const base64 = arrayBufferToBase64(arrayBuffer);
-					const css_type_font:{ [key: string]: string } = {
-						'woff':'font/woff',
+					const css_type_font: { [key: string]: string } = {
+						'woff': 'font/woff',
 						'ttf': 'font/truetype',
 						'woff2': 'font/woff2'
-					  };
+					};
 
 					const base64_css = `@font-face{
 	font-family: '${font_family_name}';
 	src: url(data:${css_type_font[font_extension_name]};base64,${base64});
-}` 
-					this.app.vault.adapter.write(css_font_path,base64_css)
-					console.log('saved font %s into %s',font_family_name,css_font_path)
+}`
+					this.app.vault.adapter.write(css_font_path, base64_css)
+					console.log('saved font %s into %s', font_family_name, css_font_path)
 
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
 					console.log('Font CSS Saved into %s', css_font_path)
 					await this.process_font()
 				}
-				else{
-					const content=await this.app.vault.adapter.read(css_font_path)
+				else {
+					const content = await this.app.vault.adapter.read(css_font_path)
 					const cssString = `
 					:root {
 						--font-default: ${font_family_name};
@@ -106,15 +98,15 @@ export default class FontPlugin extends Plugin {
 						--font-family-editor: ${font_family_name};
 					}
 					`;
-					applyCss(content,'custom_font_base64')
-					applyCss(cssString,'custom_font_general')
+					applyCss(content, 'custom_font_base64')
+					applyCss(cssString, 'custom_font_general')
 				}
-			} else{
-				applyCss('','custom_font_base64')
-				applyCss('','custom_font_general')
+			} else {
+				applyCss('', 'custom_font_base64')
+				applyCss('', 'custom_font_general')
 			}
-			
-			
+
+
 		} catch (error) {
 			new Notice(error);
 		}
@@ -124,7 +116,7 @@ export default class FontPlugin extends Plugin {
 	async onload() {
 		this.process_font()
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		
+
 		this.addSettingTab(new FontSettingTab(this.app, this));
 	}
 
@@ -162,8 +154,7 @@ class FontSettingTab extends PluginSettingTab {
 		const options = [{ name: "none", value: "None" }];
 		try {
 			const font_folder_path = '.obsidian/fonts'
-			if (!await this.app.vault.adapter.exists(font_folder_path))
-			{
+			if (!await this.app.vault.adapter.exists(font_folder_path)) {
 				await this.app.vault.adapter.mkdir(font_folder_path)
 			}
 			if (await this.app.vault.adapter.exists(font_folder_path)) {
