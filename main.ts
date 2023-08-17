@@ -60,8 +60,7 @@ export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 
 	async process_font(){
-		await this.loadSettings();
-
+		await this.loadSettings()
 		try {
 			if (
 				this.settings.font &&
@@ -110,7 +109,12 @@ export default class FontPlugin extends Plugin {
 					await this.saveSettings()
 					new Notice("Font CSS saved into "+css_font_path)
 				}
+				else{
+					const content=await this.app.vault.adapter.read(css_font_path)
+					applyCss(content,'custom_font')
+				}
 			}
+			
 			
 		} catch (error) {
 			new Notice(error);
