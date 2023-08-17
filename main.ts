@@ -78,8 +78,9 @@ export default class FontPlugin extends Plugin {
 					console.log('css file %s loaded into memory', path)
 					applyCss(convertedCSS,"custom-font-plugin-css");
 					const cssString = `
-					body {
+					:root {
 						--font-default: '${font_family_name}';
+						--default-font: '${font_family_name}';
 						--font-family-editor: '${font_family_name}';
 					}
 					`;
