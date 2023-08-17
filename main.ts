@@ -90,7 +90,6 @@ export default class FontPlugin extends Plugin {
 						'ttf': 'font/truetype',
 						'woff2': 'font/woff2'
 					  };
-					
 
 					const base64_css = `@font-face{
 	font-family: '${font_family_name}';
