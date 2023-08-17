@@ -58,7 +58,7 @@ function applyCss(css: string,css_id:string) {
 export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 
-	async onload() {
+	async process_font(){
 		await this.loadSettings();
 
 		try {
@@ -104,7 +104,7 @@ export default class FontPlugin extends Plugin {
 					await this.saveSettings()
 					new Notice('Processing Font Finished')
 					
-					await this.onload()
+					await this.process_font()
 				}
 			}
 			else {
@@ -115,7 +115,12 @@ export default class FontPlugin extends Plugin {
 			new Notice(error);
 		}
 
+	}
+
+	async onload() {
+		this.process_font()
 		// This adds a settings tab so the user can configure various aspects of the plugin
+		
 		this.addSettingTab(new FontSettingTab(this.app, this));
 	}
 
@@ -164,7 +169,6 @@ class FontSettingTab extends PluginSettingTab {
 			}
 			else {
 				await this.app.vault.adapter.mkdir('.obsidian/fonts')
-				await this.display()
 			}
 
 
@@ -186,7 +190,7 @@ class FontSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.font = value;
 						await this.plugin.saveSettings();
-						await this.plugin.onload()
+						await this.plugin.process_font()
 					});
 			});
 	}
