@@ -20,10 +20,14 @@ So no matter what device you use Obsidian on, you can customize your notes with 
 
 ## Key Features
 
-- Supports .woff, .ttf, and .woff2. Convert anything to base64!
+- Supports .woff, .ttf, and .woff2. 
 - Simple settings menu to pick your font. Change it up anytime.
 - Applies chosen font globally to your entire vault.
 - Tested with a wide range of fonts for full compatibility.
+
+## Issues and Pull-Requests
+
+This idea of this plugin just recently came into my mind. I don't know what features would be useful to you. Issues and pull requests are highly appreciated.
 
 # References
 
