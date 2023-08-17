@@ -3,7 +3,7 @@
 	"name": "Custom Font Loader",
 	"version": "1.1.6",
 	"minAppVersion": "0.15.0",
-	"description": "This plugin loads any custom font into Obsidian (including Obsidian mobile)",
+	"description": "Customize your Obsidian vault with any font you want (+ Support for Android and IOS)",
 	"author": "Amir Pourmand",
 	"authorUrl": "https://amirpourmand.ir",
 	"fundingUrl_comment": "",
