@@ -33,7 +33,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	return btoa(binary);
 }
 
-function applyCss(css: string) {
+function applyCss(css: string,css_id:string) {
 	// Create style tag
 	const style = document.createElement("style");
 
@@ -44,13 +44,14 @@ function applyCss(css: string) {
 	document.head.appendChild(style);
 
 	// Optional: Remove existing custom CSS
-	const existingStyle = document.getElementById("custom-font-plugin-css");
+	const css_id = 
+	const existingStyle = document.getElementById(css_id);
 	if (existingStyle) {
 		existingStyle.remove();
 	}
 
 	// Give ID to new style tag
-	style.id = "custom-font-plugin-css";
+	style.id = css_id;
 }
 
 export default class FontPlugin extends Plugin {
@@ -65,17 +66,24 @@ export default class FontPlugin extends Plugin {
 				this.settings.font.toLowerCase() != "none"
 			) {
 				console.log('loading %s', this.settings.font)
-
-				// Check if converted.css exists
+				const font_name = this.settings.font.replace('.','_')
+				// Check if converted font exists
 				const path =
-					".obsidian/plugins/obsidian-custom-font/converted.css";
+					".obsidian/plugins/obsidian-custom-font/" + this.settings.font+'.css';
 
 				if (this.settings.font == this.settings.processed_font && await this.app.vault.adapter.exists(path)) {
 					const convertedCSS = await this.app.vault.adapter.read(
 						path
 					);
 					console.log('css file %s loaded into memory', path)
-					applyCss(convertedCSS);
+					applyCss(convertedCSS,"custom-font-plugin-css");
+					const cssString = `
+					:root {
+						--default-font: ${font_name};
+						--font-family-editor: ${font_name}
+					}
+					`;
+					applyCss(cssString,'custom-font-apply')
 				} else {
 					new Notice("Processing Font files");
 					const file = '.obsidian/fonts/' + this.settings.font
@@ -83,26 +91,25 @@ export default class FontPlugin extends Plugin {
 
 					// Convert to base64
 					const base64 = arrayBufferToBase64(arrayBuffer);
-					const font_name = this.settings.font.replace('.woff', '')
-					const cssString = `
-  @font-face {
-    font-family: '${font_name}';
-    src: url(data:font/woff;base64,${base64})
-  }
-  :root {
-	--default-font: ${font_name};
-	--font-family-editor: ${font_name}
-  }
-`;
-					this.app.vault.adapter.write(path, cssString)
+					
+					const base64_css = `
+					@font-face{
+						font-family: '${font_name}',
+						src: url(base64, ${base64})
+					}`
+					this.app.vault.adapter.write(path,base64_css)
+					console.log('saved font %s into %s',font_name,path)
+
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
 					new Notice('Processing Font Finished')
+					
 					await this.onload()
 				}
 			}
 			else {
-				applyCss('')
+				applyCss('',"custom-font-plugin-css")
+				applyCss('',"custom-font-apply")
 			}
 		} catch (error) {
 			new Notice(error);
