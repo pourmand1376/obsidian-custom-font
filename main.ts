@@ -164,6 +164,7 @@ class FontSettingTab extends PluginSettingTab {
 			}
 			else {
 				await this.app.vault.adapter.mkdir('.obsidian/fonts')
+				await this.display()
 			}
 
 
