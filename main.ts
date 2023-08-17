@@ -6,6 +6,7 @@ import {
 	Setting,
 } from "obsidian";
 
+
 const my_css = `body {
 	--font-default: 'test',
 	--font-monospace-default: '',
