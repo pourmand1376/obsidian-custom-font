@@ -1,7 +1,7 @@
 {
 	"id": "custom-font-loader",
 	"name": "Custom Font Loader",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"minAppVersion": "0.15.0",
 	"description": "This plugin loads any custom font into Obsidian (including Obsidian mobile)",
 	"author": "Amir Pourmand",
