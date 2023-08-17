@@ -85,7 +85,7 @@ export default class FontPlugin extends Plugin {
 
 					// Convert to base64
 					const base64 = arrayBufferToBase64(arrayBuffer);
-					let css_type_font:{ [key: string]: string } = {
+					const css_type_font:{ [key: string]: string } = {
 						'woff':'font/woff',
 						'ttf': 'font/truetype'
 					  };
@@ -103,7 +103,7 @@ export default class FontPlugin extends Plugin {
 }
 `;
 					this.app.vault.adapter.write(css_font_path,base64_css+cssString)
-					console.log('saved font %s into %s',font_family_name,path)
+					console.log('saved font %s into %s',font_family_name,css_font_path)
 
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
