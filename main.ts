@@ -87,7 +87,8 @@ export default class FontPlugin extends Plugin {
 					const base64 = arrayBufferToBase64(arrayBuffer);
 					const css_type_font:{ [key: string]: string } = {
 						'woff':'font/woff',
-						'ttf': 'font/truetype'
+						'ttf': 'font/truetype',
+						'woff2': 'font/woff2'
 					  };
 					
 
