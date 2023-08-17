@@ -67,7 +67,8 @@ export default class FontPlugin extends Plugin {
 				this.settings.font.toLowerCase() != "none"
 			) {
 				console.log('loading %s', this.settings.font)
-				const font_family_name = this.settings.font.split('.')[0]
+				const font_family_name:string = this.settings.font.split('.')[0]
+				const font_extension_name:string = this.settings.font.split('.')[1]
 				// Check if converted font exists
 				const path = `.obsidian/plugins/${plugin_name}/${this.settings.font}.css`
 				
@@ -76,7 +77,7 @@ export default class FontPlugin extends Plugin {
 				{
 					await this.app.vault.adapter.mkdir(snippets_folder_path)
 				}
-				const css_font_path = `${snippets_folder_path}/${this.settings.font}.css`
+				const css_font_path = `${snippets_folder_path}/${this.settings.font.replace('.','_')}.css`
 				
 				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
 					new Notice("Processing Font files");
@@ -85,19 +86,23 @@ export default class FontPlugin extends Plugin {
 
 					// Convert to base64
 					const base64 = arrayBufferToBase64(arrayBuffer);
+					let css_type_font:{ [key: string]: string } = {
+						'woff':'font/woff',
+						'ttf': 'font/truetype'
+					  };
 					
-					const base64_css = `
-					@font-face{
-						font-family: '${font_family_name}';
-						src: url(base64, ${base64});
-					}` 
+
+					const base64_css = `@font-face{
+	font-family: '${font_family_name}';
+	src: url(data:${css_type_font[font_extension_name]} base64, ${base64});
+}` 
 					const cssString = `
-					:root {
-						--font-default: ${font_family_name};
-						--default-font: ${font_family_name};
-						--font-family-editor: ${font_family_name};
-					}
-					`;
+:root {
+	--font-default: ${font_family_name};
+	--default-font: ${font_family_name};
+	--font-family-editor: ${font_family_name};
+}
+`;
 					this.app.vault.adapter.write(css_font_path,base64_css+cssString)
 					console.log('saved font %s into %s',font_family_name,path)
 
