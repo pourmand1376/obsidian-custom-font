@@ -4,6 +4,7 @@ This plugin can apply any fonts to your obsidian vault. For now, you should find
 
 Currenty, I only support `.woff` font files. I plan to add other font files if requested. 
 
-References:
+# References:
 
 - [Embed fonts and images in your theme - Developer Documentation](https://docs.obsidian.md/Themes/App+themes/Embed+fonts+and+images+in+your+theme)
+

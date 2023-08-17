@@ -6,6 +6,14 @@ import {
 	Setting,
 } from "obsidian";
 
+const my_css = `body {
+	--font-default: 'test',
+	--font-monospace-default: '',
+	--font-interface-override: '',
+	--font-text-override: '',
+	--font-monospace-override: '',	
+}`
+
 interface FontPluginSettings {
 	font: string;
 	processed_font: string;
@@ -83,7 +91,7 @@ export default class FontPlugin extends Plugin {
   }
   :root {
 	--default-font: ${font_name};
-	--font-family-editor: ${font_name};
+	--font-family-editor: ${font_name}
   }
 `;
 					this.app.vault.adapter.write(path, cssString)
