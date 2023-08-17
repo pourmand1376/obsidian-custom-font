@@ -14,6 +14,8 @@ const my_css = `body {
 	--font-monospace-override: '',	
 }`
 
+const plugin_name = 'custom-font-loader'
+
 interface FontPluginSettings {
 	font: string;
 	processed_font: string;
@@ -67,8 +69,7 @@ export default class FontPlugin extends Plugin {
 				console.log('loading %s', this.settings.font)
 				const font_family_name = this.settings.font.split('.')[0]
 				// Check if converted font exists
-				const path =
-					".obsidian/plugins/obsidian-custom-font/" + this.settings.font+'.css';
+				const path = `.obsidian/plugins/${plugin_name}/${this.settings.font}.css`
 
 				if (this.settings.font == this.settings.processed_font && await this.app.vault.adapter.exists(path)) {
 					const convertedCSS = await this.app.vault.adapter.read(
