@@ -15,7 +15,6 @@ const my_css = `body {
 	--font-monospace-override: '',	
 }`
 
-const plugin_name = 'custom-font-loader'
 
 interface FontPluginSettings {
 	font: string;
@@ -69,14 +68,9 @@ export default class FontPlugin extends Plugin {
 				console.log('loading %s', this.settings.font)
 				const font_family_name:string = this.settings.font.split('.')[0]
 				const font_extension_name:string = this.settings.font.split('.')[1]
-				// Check if converted font exists
-				
-				const snippets_folder_path = '.obsidian/snippets'
-				if (!await this.app.vault.adapter.exists(snippets_folder_path))
-				{
-					await this.app.vault.adapter.mkdir(snippets_folder_path)
-				}
-				const css_font_path = `${snippets_folder_path}/${this.settings.font.toLowerCase().replace('.','_')}.css`
+				const plugin_folder_path = '.obsidian/plugins/custom-font-loader'
+
+				const css_font_path = `${plugin_folder_path}/${this.settings.font.toLowerCase().replace('.','_')}.css`
 				
 				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
 					new Notice("Processing Font files");
@@ -95,24 +89,29 @@ export default class FontPlugin extends Plugin {
 	font-family: '${font_family_name}';
 	src: url(data:${css_type_font[font_extension_name]};base64,${base64});
 }` 
-					const cssString = `
-:root {
-	--font-default: ${font_family_name};
-	--default-font: ${font_family_name};
-	--font-family-editor: ${font_family_name};
-}
-`;
-					this.app.vault.adapter.write(css_font_path,base64_css+cssString)
+					this.app.vault.adapter.write(css_font_path,base64_css)
 					console.log('saved font %s into %s',font_family_name,css_font_path)
 
 					this.settings.processed_font = this.settings.font
 					await this.saveSettings()
-					new Notice("Font CSS saved into "+css_font_path)
+					console.log('Font CSS Saved into %s', css_font_path)
+					await this.process_font()
 				}
 				else{
 					const content=await this.app.vault.adapter.read(css_font_path)
-					applyCss(content,'custom_font')
+					const cssString = `
+					:root {
+						--font-default: ${font_family_name};
+						--default-font: ${font_family_name};
+						--font-family-editor: ${font_family_name};
+					}
+					`;
+					applyCss(content,'custom_font_base64')
+					applyCss(cssString,'custom_font_general')
 				}
+			} else{
+				applyCss('','custom_font_base64')
+				applyCss('','custom_font_general')
 			}
 			
 			
