@@ -70,14 +70,13 @@ export default class FontPlugin extends Plugin {
 				const font_family_name:string = this.settings.font.split('.')[0]
 				const font_extension_name:string = this.settings.font.split('.')[1]
 				// Check if converted font exists
-				const path = `.obsidian/plugins/${plugin_name}/${this.settings.font}.css`
 				
 				const snippets_folder_path = '.obsidian/snippets'
 				if (!await this.app.vault.adapter.exists(snippets_folder_path))
 				{
 					await this.app.vault.adapter.mkdir(snippets_folder_path)
 				}
-				const css_font_path = `${snippets_folder_path}/${this.settings.font.replace('.','_')}.css`
+				const css_font_path = `${snippets_folder_path}/${this.settings.font.toLowerCase().replace('.','_')}.css`
 				
 				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
 					new Notice("Processing Font files");
@@ -94,7 +93,7 @@ export default class FontPlugin extends Plugin {
 
 					const base64_css = `@font-face{
 	font-family: '${font_family_name}';
-	src: url(data:${css_type_font[font_extension_name]};base64, ${base64});
+	src: url(data:${css_type_font[font_extension_name]};base64,${base64});
 }` 
 					const cssString = `
 :root {
