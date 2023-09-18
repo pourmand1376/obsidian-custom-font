@@ -121,7 +121,10 @@ export default class FontPlugin extends Plugin {
 		this.addSettingTab(new FontSettingTab(this.app, this));
 	}
 
-	onunload() { }
+	async onunload() {
+		applyCss('', 'custom_font_base64')
+		applyCss('', 'custom_font_general')
+	 }
 
 	async loadSettings() {
 		this.settings = Object.assign(
