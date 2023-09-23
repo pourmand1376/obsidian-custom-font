@@ -24,7 +24,7 @@ lint: ## lint main.ts file
 	eslint main.ts
 
 alpha_version: ## create an alpha version
-	npm version patch
+	npm version prerelease --preid=alpha
 	git reset HEAD^
 	cp manifest.json manifest-beta.json
 	git checkout master manifest.json
