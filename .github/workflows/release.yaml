@@ -28,6 +28,14 @@ jobs:
         run: |
           tag="${GITHUB_REF#refs/tags/}"
 
+          # Check if the tag contains "alpha"
+          if [[ $tag == *"alpha"* ]]; then
+            prerelease="--prerelease"
+          else
+            prerelease=""
+          fi
+
           gh release create "$tag" \
             --title="$tag" \
-            main.js manifest.json
+            main.js manifest.json \
+            $prerelease
