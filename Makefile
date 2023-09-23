@@ -25,6 +25,17 @@ lint: ## lint main.ts file
 
 alpha_version: ## create an alpha version
 	npm version prerelease --preid=alpha
+	git add .
+	git commit --amend --no-edit
+	git push
+	make prerelease
+
+ALPHA_VERSION=$(shell jq -r '.version' manifest-beta.json)
+prerelease: ## make a prerelease
+	echo "Version is $(ALPHA_VERSION)"
+	git tag $(ALPHA_VERSION) --force
+	git push origin $(ALPHA_VERSION) --force
+
 
 patch_version: ## create a new patch version
 	npm version patch
