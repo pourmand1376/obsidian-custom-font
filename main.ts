@@ -11,11 +11,13 @@ import {
 interface FontPluginSettings {
 	font: string;
 	processed_font: string;
+	force_mode: boolean;
 }
 
 const DEFAULT_SETTINGS: FontPluginSettings = {
 	font: "None",
 	processed_font: "",
+	force_mode: false,
 };
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
@@ -92,13 +94,23 @@ export default class FontPlugin extends Plugin {
 				}
 				else {
 					const content = await this.app.vault.adapter.read(css_font_path)
-					const cssString = `
+					let cssString = `
 					:root {
 						--font-default: ${font_family_name};
 						--default-font: ${font_family_name};
 						--font-family-editor: ${font_family_name};
+						--font-monospace-default: ${font_family_name},
+						--font-interface-override: ${font_family_name},
+						--font-text-override: ${font_family_name},
+						--font-monospace-override: ${font_family_name},	
 					}
 					`;
+					if (this.settings.force_mode)
+						cssString = cssString + `
+					* {
+						font-family: ${font_family_name} !important;
+					}
+						`
 					applyCss(content, 'custom_font_base64')
 					applyCss(cssString, 'custom_font_general')
 				}
@@ -193,5 +205,16 @@ class FontSettingTab extends PluginSettingTab {
 						await this.plugin.process_font()
 					});
 			});
+		new Setting(containerEl)
+			.setName("Force Style")
+			.setDesc("This option should be used if you have installed a community plugin and normal mode doesn't work")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.force_mode)
+				toggle.onChange(async (value) => {
+					this.plugin.settings.force_mode = value
+					await this.plugin.saveSettings();
+					await this.plugin.process_font()
+				})
+			})
 	}
 }
