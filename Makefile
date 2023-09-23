@@ -26,14 +26,17 @@ lint: ## lint main.ts file
 patch_version: ## create a new patch version
 	npm version patch
 	git push
+	make release
 
 minor_version: ## create a new minor version
 	npm version minor
 	git push
+	make release
 
 major_version: ## create a new major version
 	npm version major
 	git push
+	make release
 
 VERSION=$(shell jq -r '.version' manifest.json)
 release: ## create and push tags (release)
