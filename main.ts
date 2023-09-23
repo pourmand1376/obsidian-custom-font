@@ -207,7 +207,7 @@ class FontSettingTab extends PluginSettingTab {
 			});
 		new Setting(containerEl)
 			.setName("Force Style")
-			.setDesc("This option should be used if you have installed a community theme and normal mode doesn't work")
+			.setDesc("This option should only be used if you have installed a community theme and normal mode doesn't work")
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.force_mode)
 				toggle.onChange(async (value) => {
