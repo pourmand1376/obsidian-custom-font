@@ -23,6 +23,14 @@ install_es_lint: ## install linter
 lint: ## lint main.ts file
 	eslint main.ts
 
+alpha_version: ## create an alpha version
+	npm version patch
+	git reset HEAD^
+	cp manifest.json manifest-beta.json
+	git checkout master manifest.json
+	git add . 
+	git commit -m "Update versions for alpha release"
+
 patch_version: ## create a new patch version
 	npm version patch
 	git push
