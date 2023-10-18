@@ -216,5 +216,13 @@ class FontSettingTab extends PluginSettingTab {
 					await this.plugin.process_font()
 				})
 			})
+		new Setting(containerEl).setName("Add Font").addButton(button => this.add_style_option())
 	}
+	add_style_option(){
+		new Setting(this.containerEl).setName('Font').setDesc('Choose Your font').addDropdown(dropdown => {
+			dropdown.addOption('test','test display')
+		})
+		new Setting(this.containerEl).addTextArea(text => text.setValue('test'))
+	}
+
 }
