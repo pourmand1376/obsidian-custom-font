@@ -1,12 +1,4 @@
-import {
-	App,
-	Notice,
-	Plugin,
-	PluginSettingTab,
-	Setting,
-} from "obsidian";
-
-
+import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
 
 interface FontPluginSettings {
 	font: string;
@@ -53,47 +45,59 @@ export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 
 	async process_font() {
-		await this.loadSettings()
+		await this.loadSettings();
 		try {
 			if (
 				this.settings.font &&
 				this.settings.font.toLowerCase() != "none"
 			) {
-				console.log('loading %s', this.settings.font)
-				const font_family_name: string = this.settings.font.split('.')[0]
-				const font_extension_name: string = this.settings.font.split('.')[1]
-				const config_dir = this.app.vault.configDir
-				const plugin_folder_path = `${config_dir}/plugins/custom-font-loader`
+				console.log("loading %s", this.settings.font);
+				const font_family_name: string =
+					this.settings.font.split(".")[0];
+				const font_extension_name: string =
+					this.settings.font.split(".")[1];
+				const config_dir = this.app.vault.configDir;
+				const plugin_folder_path = `${config_dir}/plugins/custom-font-loader`;
 
-				const css_font_path = `${plugin_folder_path}/${this.settings.font.toLowerCase().replace('.', '_')}.css`
+				const css_font_path = `${plugin_folder_path}/${this.settings.font
+					.toLowerCase()
+					.replace(".", "_")}.css`;
 
-				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
+				if (
+					this.settings.font != this.settings.processed_font ||
+					!(await this.app.vault.adapter.exists(css_font_path))
+				) {
 					new Notice("Processing Font files");
-					const file = `${config_dir}/fonts/${this.settings.font}`
-					const arrayBuffer = await this.app.vault.adapter.readBinary(file);
+					const file = `${config_dir}/fonts/${this.settings.font}`;
+					const arrayBuffer =
+						await this.app.vault.adapter.readBinary(file);
 
 					// Convert to base64
 					const base64 = arrayBufferToBase64(arrayBuffer);
 					const css_type_font: { [key: string]: string } = {
-						'woff': 'font/woff',
-						'ttf': 'font/truetype',
-						'woff2': 'font/woff2'
+						woff: "font/woff",
+						ttf: "font/truetype",
+						woff2: "font/woff2",
 					};
 
 					const base64_css = `@font-face{
 	font-family: '${font_family_name}';
 	src: url(data:${css_type_font[font_extension_name]};base64,${base64});
-}`
-					this.app.vault.adapter.write(css_font_path, base64_css)
-					console.log('saved font %s into %s', font_family_name, css_font_path)
+}`;
+					this.app.vault.adapter.write(css_font_path, base64_css);
+					console.log(
+						"saved font %s into %s",
+						font_family_name,
+						css_font_path,
+					);
 
-					this.settings.processed_font = this.settings.font
-					await this.saveSettings()
-					console.log('Font CSS Saved into %s', css_font_path)
-					await this.process_font()
-				}
-				else {
-					const content = await this.app.vault.adapter.read(css_font_path)
+					this.settings.processed_font = this.settings.font;
+					await this.saveSettings();
+					console.log("Font CSS Saved into %s", css_font_path);
+					await this.process_font();
+				} else {
+					const content =
+						await this.app.vault.adapter.read(css_font_path);
 					let cssString = `
 					:root {
 						--font-default: ${font_family_name};
@@ -106,43 +110,42 @@ export default class FontPlugin extends Plugin {
 					}
 					`;
 					if (this.settings.force_mode)
-						cssString = cssString + `
+						cssString =
+							cssString +
+							`
 					* {
 						font-family: ${font_family_name} !important;
 					}
-						`
-					applyCss(content, 'custom_font_base64')
-					applyCss(cssString, 'custom_font_general')
+						`;
+					applyCss(content, "custom_font_base64");
+					applyCss(cssString, "custom_font_general");
 				}
 			} else {
-				applyCss('', 'custom_font_base64')
-				applyCss('', 'custom_font_general')
+				applyCss("", "custom_font_base64");
+				applyCss("", "custom_font_general");
 			}
-
-
 		} catch (error) {
 			new Notice(error);
 		}
-
 	}
 
 	async onload() {
-		this.process_font()
+		this.process_font();
 		// This adds a settings tab so the user can configure various aspects of the plugin
 
 		this.addSettingTab(new FontSettingTab(this.app, this));
 	}
 
 	async onunload() {
-		applyCss('', 'custom_font_base64')
-		applyCss('', 'custom_font_general')
-	 }
+		applyCss("", "custom_font_base64");
+		applyCss("", "custom_font_general");
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			await this.loadData()
+			await this.loadData(),
 		);
 	}
 
@@ -161,32 +164,31 @@ class FontSettingTab extends PluginSettingTab {
 
 	async display() {
 		const { containerEl } = this;
-
 		containerEl.empty();
 
 		const infoContainer = containerEl.createDiv();
-		infoContainer.setText("In Order to set the font, copy your font into '.obsidian/fonts/' directory.");
+		infoContainer.setText(
+			"In Order to set the font, copy your font into '.obsidian/fonts/' directory.",
+		);
 
 		const options = [{ name: "none", value: "None" }];
 		try {
-			const font_folder_path = `${this.app.vault.configDir}/fonts`
-			if (!await this.app.vault.adapter.exists(font_folder_path)) {
-				await this.app.vault.adapter.mkdir(font_folder_path)
+			const font_folder_path = `${this.app.vault.configDir}/fonts`;
+			if (!(await this.app.vault.adapter.exists(font_folder_path))) {
+				await this.app.vault.adapter.mkdir(font_folder_path);
 			}
 			if (await this.app.vault.adapter.exists(font_folder_path)) {
-				const files = await this.app.vault.adapter.list(font_folder_path)
+				const files =
+					await this.app.vault.adapter.list(font_folder_path);
 
 				// Add files as options
 				for (const file of files.files) {
-					const file_name = file.split('/')[2]
+					const file_name = file.split("/")[2];
 					options.push({ name: file_name, value: file_name });
 				}
 			}
-
-
-		}
-		catch (error) {
-			console.log(error)
+		} catch (error) {
+			console.log(error);
 		}
 		// Show combo box in UI somehow
 		new Setting(containerEl)
@@ -202,27 +204,33 @@ class FontSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.font = value;
 						await this.plugin.saveSettings();
-						await this.plugin.process_font()
+						await this.plugin.process_font();
 					});
 			});
 		new Setting(containerEl)
 			.setName("Force Style")
-			.setDesc("This option should only be used if you have installed a community theme and normal mode doesn't work")
+			.setDesc(
+				"This option should only be used if you have installed a community theme and normal mode doesn't work",
+			)
 			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.force_mode)
+				toggle.setValue(this.plugin.settings.force_mode);
 				toggle.onChange(async (value) => {
-					this.plugin.settings.force_mode = value
+					this.plugin.settings.force_mode = value;
 					await this.plugin.saveSettings();
-					await this.plugin.process_font()
-				})
-			})
-		new Setting(containerEl).setName("Add Font").addButton(button => this.add_style_option())
+					await this.plugin.process_font();
+				});
+			});
+		new Setting(containerEl).setName("Add Font").addButton((button) => {
+			button.onClick(() => {
+				containerEl.createDiv();
+				new Setting(this.containerEl)
+					.setName("Font")
+					.setDesc("Choose Your font")
+					.addDropdown((dropdown) => {
+						dropdown.addOption("test", "test display");
+					})
+					.addTextArea((text) => text.setValue("test"));
+			});
+		});
 	}
-	add_style_option(){
-		new Setting(this.containerEl).setName('Font').setDesc('Choose Your font').addDropdown(dropdown => {
-			dropdown.addOption('test','test display')
-		})
-		new Setting(this.containerEl).addTextArea(text => text.setValue('test'))
-	}
-
 }

@@ -9,6 +9,11 @@ download_files: ## download new releases
 	wget https://github.com/pourmand1376/obsidian-custom-font/releases/download/$(VERSION)/main.js -O main.js
 	wget https://github.com/pourmand1376/obsidian-custom-font/releases/download/$(VERSION)/manifest.json -O manifest.json
 
+.PHONY: envionment
+envionment: ## set environment
+	pip install pre-commit
+	pre-commit install 
+
 .PHONY: dev
 dev: ## run dev
 	npm run dev
