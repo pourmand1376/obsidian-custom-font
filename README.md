@@ -2,9 +2,13 @@
 
 Spice up your Obsidian notes with custom fonts! This plugin is created since currently obsidian doesn't support setting custom fonts easily. This is the case, especially in Android and IOS. 
 
-Plugin Settings Page
+## Plugin Settings Page
 
 ![Plugin-settings-page](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.1.6/plugin-preview.gif)
+
+## New Version
+
+![Custom-font-preview](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.2.0/custom-font-preview.png)
 
 ## Compatibility
 
@@ -24,6 +28,7 @@ So no matter what device you use Obsidian on, you can customize your notes with 
 - Simple settings menu to pick your font. Change it up anytime.
 - Applies chosen font globally to your entire vault.
 - Tested with a wide range of fonts for full compatibility.
+- Custom CSS Style Support: You can apply the font to anywhere you want!
 
 ## Issues and Pull-Requests
 
