@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 	custom_css: "",
 };
 
-function get_default_css(font_family_name: string){
+function get_default_css(font_family_name: string) {
 	return `:root {
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
@@ -111,12 +111,12 @@ export default class FontPlugin extends Plugin {
 				}
 				else {
 					const content = await this.app.vault.adapter.read(css_font_path)
-					let css_string:string = "" 
-					if (this.settings.custom_css_mode){
+					let css_string = ""
+					if (this.settings.custom_css_mode) {
 						css_string = this.settings.custom_css
 					}
 					else {
-						css_string=get_default_css(font_family_name)
+						css_string = get_default_css(font_family_name)
 					}
 					if (this.settings.force_mode)
 						css_string = css_string + `
@@ -149,7 +149,7 @@ export default class FontPlugin extends Plugin {
 	async onunload() {
 		applyCss('', 'custom_font_base64')
 		applyCss('', 'custom_font_general')
-	 }
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -227,15 +227,14 @@ class FontSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					await this.plugin.process_font()
 				})
-			})	
+			})
 		new Setting(containerEl)
 			.setName("Custom CSS Mode")
 			.setDesc("If you want to apply a custom css style rather than default style, choose this.")
 			.addToggle((toggle) => {
 				toggle.setValue(this.plugin.settings.custom_css_mode)
 				toggle.onChange(async (value) => {
-					if (this.plugin.settings.custom_css_mode == false)
-					{
+					if (this.plugin.settings.custom_css_mode == false) {
 						this.plugin.settings.custom_css = ""
 					}
 					this.plugin.settings.custom_css_mode = value
@@ -244,44 +243,42 @@ class FontSettingTab extends PluginSettingTab {
 					this.display()
 				})
 			})
-		if (this.plugin.settings.custom_css_mode)
-		{
-		new Setting(containerEl)
-			.setName("Custom CSS Style")
-			.setDesc("Input your custom css style")
-			.addTextArea((text) => {
-				text.onChange(async (new_value) => {
-					this.plugin.settings.custom_css = new_value
-					await this.plugin.saveSettings();
-					await this.plugin.process_font()
-				}
-				)
-				text.setDisabled(!this.plugin.settings.custom_css_mode)
-
-				if (this.plugin.settings.custom_css == "")
-				{
-					let font_family_name = ""
-					try {
-						font_family_name = this.plugin.settings.font.split('.')[0]
-					} catch (error) {
-						
+		if (this.plugin.settings.custom_css_mode) {
+			new Setting(containerEl)
+				.setName("Custom CSS Style")
+				.setDesc("Input your custom css style")
+				.addTextArea((text) => {
+					text.onChange(async (new_value) => {
+						this.plugin.settings.custom_css = new_value
+						await this.plugin.saveSettings();
+						await this.plugin.process_font()
 					}
-					text.setValue(get_default_css(font_family_name))
-				}
-				else {
-					text.setValue(this.plugin.settings.custom_css)
-				}
-				text.onChanged()
+					)
+					text.setDisabled(!this.plugin.settings.custom_css_mode)
 
-				text.inputEl.style.width = "100%"
-                text.inputEl.style.height = "100px"
-				
-				
-			})	
+					if (this.plugin.settings.custom_css == "") {
+						let font_family_name = ""
+						try {
+							font_family_name = this.plugin.settings.font.split('.')[0]
+						} catch (error) {
+							console.log(error)
+						}
+						text.setValue(get_default_css(font_family_name))
+					}
+					else {
+						text.setValue(this.plugin.settings.custom_css)
+					}
+					text.onChanged()
+
+					text.inputEl.style.width = "100%"
+					text.inputEl.style.height = "100px"
+
+
+				})
 		}
-		
-			
-		
-	
+
+
+
+
 	}
 }
