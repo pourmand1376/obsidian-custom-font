@@ -12,13 +12,30 @@ interface FontPluginSettings {
 	font: string;
 	processed_font: string;
 	force_mode: boolean;
+	custom_css_mode: boolean;
+	custom_css: string;
 }
 
 const DEFAULT_SETTINGS: FontPluginSettings = {
 	font: "None",
 	processed_font: "",
 	force_mode: false,
+	custom_css_mode: false,
+	custom_css: "",
 };
+
+function get_default_css(font_family_name: string){
+	return `:root {
+		--font-default: ${font_family_name};
+		--default-font: ${font_family_name};
+		--font-family-editor: ${font_family_name};
+		--font-monospace-default: ${font_family_name},
+		--font-interface-override: ${font_family_name},
+		--font-text-override: ${font_family_name},
+		--font-monospace-override: ${font_family_name},	
+	}
+	`;
+}
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
@@ -94,25 +111,21 @@ export default class FontPlugin extends Plugin {
 				}
 				else {
 					const content = await this.app.vault.adapter.read(css_font_path)
-					let cssString = `
-					:root {
-						--font-default: ${font_family_name};
-						--default-font: ${font_family_name};
-						--font-family-editor: ${font_family_name};
-						--font-monospace-default: ${font_family_name},
-						--font-interface-override: ${font_family_name},
-						--font-text-override: ${font_family_name},
-						--font-monospace-override: ${font_family_name},	
+					let css_string:string = "" 
+					if (this.settings.custom_css_mode){
+						css_string = this.settings.custom_css
 					}
-					`;
+					else {
+						css_string=get_default_css(font_family_name)
+					}
 					if (this.settings.force_mode)
-						cssString = cssString + `
+						css_string = css_string + `
 					* {
 						font-family: ${font_family_name} !important;
 					}
 						`
 					applyCss(content, 'custom_font_base64')
-					applyCss(cssString, 'custom_font_general')
+					applyCss(css_string, 'custom_font_general')
 				}
 			} else {
 				applyCss('', 'custom_font_base64')
@@ -166,7 +179,6 @@ class FontSettingTab extends PluginSettingTab {
 
 		const infoContainer = containerEl.createDiv();
 		infoContainer.setText("In Order to set the font, copy your font into '.obsidian/fonts/' directory.");
-
 		const options = [{ name: "none", value: "None" }];
 		try {
 			const font_folder_path = `${this.app.vault.configDir}/fonts`
@@ -200,8 +212,8 @@ class FontSettingTab extends PluginSettingTab {
 				dropdown
 					.setValue(this.plugin.settings.font)
 					.onChange(async (value) => {
-						this.plugin.settings.font = value;
-						await this.plugin.saveSettings();
+						this.plugin.settings.font = value
+						await this.plugin.saveSettings()
 						await this.plugin.process_font()
 					});
 			});
@@ -215,6 +227,61 @@ class FontSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					await this.plugin.process_font()
 				})
+			})	
+		new Setting(containerEl)
+			.setName("Custom CSS Mode")
+			.setDesc("If you want to apply a custom css style rather than default style, choose this.")
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.custom_css_mode)
+				toggle.onChange(async (value) => {
+					if (this.plugin.settings.custom_css_mode == false)
+					{
+						this.plugin.settings.custom_css = ""
+					}
+					this.plugin.settings.custom_css_mode = value
+					this.plugin.saveSettings()
+					this.plugin.process_font()
+					this.display()
+				})
 			})
+		if (this.plugin.settings.custom_css_mode)
+		{
+		new Setting(containerEl)
+			.setName("Custom CSS Style")
+			.setDesc("Input your custom css style")
+			.addTextArea((text) => {
+				text.onChange(async (new_value) => {
+					this.plugin.settings.custom_css = new_value
+					await this.plugin.saveSettings();
+					await this.plugin.process_font()
+				}
+				)
+				text.setDisabled(!this.plugin.settings.custom_css_mode)
+
+				if (this.plugin.settings.custom_css == "")
+				{
+					let font_family_name = ""
+					try {
+						font_family_name = this.plugin.settings.font.split('.')[0]
+					} catch (error) {
+						
+					}
+					text.setValue(get_default_css(font_family_name))
+				}
+				else {
+					text.setValue(this.plugin.settings.custom_css)
+				}
+				text.onChanged()
+
+				text.inputEl.style.width = "100%"
+                text.inputEl.style.height = "100px"
+				
+				
+			})	
+		}
+		
+			
+		
+	
 	}
 }
