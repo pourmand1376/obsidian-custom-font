@@ -25,7 +25,8 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 };
 
 function get_default_css(font_family_name: string) {
-	return `:root {
+	return `* {
+ 		--font-family: ${font_family_name};
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
 		--font-family-editor: ${font_family_name};
@@ -64,6 +65,10 @@ function applyCss(css: string, css_id: string) {
 
 	// Give ID to new style tag
 	style.id = css_id;
+}
+
+function addImportantToCSS(css) {
+  return css.replace(/(\b[^:]+:\s*[^;!]+)(?!;?\s*!important)(;|,|$)/g, '$1 !important$2');
 }
 
 export default class FontPlugin extends Plugin {
@@ -118,12 +123,14 @@ export default class FontPlugin extends Plugin {
 					else {
 						css_string = get_default_css(font_family_name)
 					}
-					if (this.settings.force_mode)
-						css_string = css_string + `
-					* {
-						font-family: ${font_family_name} !important;
-					}
-						`
+				    // Apply force mode CSS if enabled
+				    if (this.settings.force_mode) {
+				      let force_css = addImportantToCSS(css_string);
+				      applyCss(force_css, "custom_font_force");
+				    } else {
+				      applyCss("", "custom_font_force");
+				    }
+
 					applyCss(content, 'custom_font_base64')
 					applyCss(css_string, 'custom_font_general')
 				}
