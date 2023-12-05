@@ -25,8 +25,8 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 };
 
 function get_default_css(font_family_name: string) {
-	return `* {
- 		--font-family: ${font_family_name};
+	return `div {
+	font-family: ${font_family_name};
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
 		--font-family-editor: ${font_family_name};
@@ -34,9 +34,13 @@ function get_default_css(font_family_name: string) {
 		--font-interface-override: ${font_family_name},
 		--font-text-override: ${font_family_name},
 		--font-monospace-override: ${font_family_name},	
+		--font-family-strong: ${font_family_name},	
+		--font-text-theme: ${font_family_name},	
+		--font-family-tag: ${font_family_name},	
 	}
 	`;
 }
+	
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
@@ -68,9 +72,14 @@ function applyCss(css: string, css_id: string) {
 }
 
 function addImportantToCSS(css) {
-  return css.replace(/(\b[^:]+:\s*[^;!]+)(?!;?\s*!important)(;|,|$)/g, '$1 !important$2');
-}
-
+	let processedCss = css.replace(/{([^}]+)}/g, (match, cssRules) => {
+	  let processedRules = cssRules.replace(/([^;]+)(;|,)/g, '$1 !important$2');
+	  return `{${processedRules}}`;
+	});
+	//new import_obsidian.Notice(processedCss);
+	return processedCss;
+  }
+  
 export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 
