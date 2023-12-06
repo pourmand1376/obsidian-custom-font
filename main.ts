@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 };
 
 function get_default_css(font_family_name: string) {
-	return `div span {
+	return `div, span {
 	font-family: ${font_family_name};
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
