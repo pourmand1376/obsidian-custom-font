@@ -29,6 +29,7 @@ So no matter what device you use Obsidian on, you can customize your notes with 
 - Applies chosen font globally to your entire vault.
 - Tested with a wide range of fonts for full compatibility.
 - Custom CSS Style Support: You can apply the font to anywhere you want!
+- Ability to set custom font on specific pages (See [#7](https://github.com/pourmand1376/obsidian-custom-font/issues/7))
 
 ## Issues and Pull-Requests
 
