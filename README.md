@@ -1,3 +1,5 @@
+![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?label=downloads&query=%24%5B%22custom-font-loader%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)
+
 # Obsidian Custom Font Plugin
 
 Spice up your Obsidian notes with custom fonts! This plugin is created since currently obsidian doesn't support setting custom fonts easily. This is the case, especially in Android and IOS. 
