@@ -10,7 +10,6 @@ import {
 
 interface FontPluginSettings {
 	font: string;
-	processed_font: string;
 	force_mode: boolean;
 	custom_css_mode: boolean;
 	custom_css: string;
@@ -18,7 +17,6 @@ interface FontPluginSettings {
 
 const DEFAULT_SETTINGS: FontPluginSettings = {
 	font: "None",
-	processed_font: "",
 	force_mode: false,
 	custom_css_mode: false,
 	custom_css: "",
@@ -46,86 +44,58 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	return btoa(binary);
 }
 
-function applyCss(css: string, css_id: string) {
-	// Create style tag
-	const style = document.createElement("style");
-
-	// Add CSS content
-	style.innerHTML = css;
-
-	// Append style tag to head
-	document.head.appendChild(style);
-
-	// Optional: Remove existing custom CSS
+function applyCss(css: string, css_id: string, appendMode: boolean = false) {
+	// Check if style tag with the given ID already exists
 	const existingStyle = document.getElementById(css_id);
-	if (existingStyle) {
-		existingStyle.remove();
-	}
 
-	// Give ID to new style tag
-	style.id = css_id;
+	if (existingStyle && appendMode) {
+		// Append CSS content to existing style tag
+		existingStyle.innerHTML += css;
+	} else {
+		// Create style tag
+		const style = document.createElement("style");
+
+		// Add CSS content
+		style.innerHTML = css;
+
+		// Append style tag to head
+		document.head.appendChild(style);
+
+		// Optional: Remove existing custom CSS
+		if (existingStyle) {
+			existingStyle.remove();
+		}
+
+		// Give ID to new style tag
+		style.id = css_id;
+	}
 }
+
 
 export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 	config_dir: string =  this.app.vault.configDir;
 	plugin_folder_path: string = `${this.config_dir}/plugins/custom-font-loader`
-	
-	async process_font() {
+	font_folder_path = `${this.app.vault.configDir}/fonts`
+
+	async load_plugin() {
 		await this.loadSettings()
 		try {
+			const font_file_name: string = this.settings.font
 			if (
-				this.settings.font &&
-				this.settings.font.toLowerCase() != "none"
+				font_file_name &&
+				font_file_name.toLowerCase() != "none"
 			) {
-				console.log('loading %s', this.settings.font)
-				const font_family_name: string = this.settings.font.split('.')[0]
-				const font_extension_name: string = this.settings.font.split('.')[1]
-
-				const css_font_path = `${this.plugin_folder_path}/${this.settings.font.toLowerCase().replace('.', '_')}.css`
-
-				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
-					new Notice("Processing Font files");
-					const file = `${this.config_dir}/fonts/${this.settings.font}`
-					const arrayBuffer = await this.app.vault.adapter.readBinary(file);
-
-					// Convert to base64
-					const base64 = arrayBufferToBase64(arrayBuffer);
-					const css_type_font: { [key: string]: string } = {
-						'woff': 'font/woff',
-						'ttf': 'font/truetype',
-						'woff2': 'font/woff2'
-					};
-
-					const base64_css = `@font-face{
-	font-family: '${font_family_name}';
-	src: url(data:${css_type_font[font_extension_name]};base64,${base64});
-}`
-					this.app.vault.adapter.write(css_font_path, base64_css)
-					console.log('saved font %s into %s', font_family_name, css_font_path)
-
-					this.settings.processed_font = this.settings.font
-					await this.saveSettings()
-					console.log('Font CSS Saved into %s', css_font_path)
-					await this.process_font()
-				}
+				if (font_file_name != "all")
+					{
+						await this.process_and_load_font(font_file_name, false);
+					}
 				else {
-					const content = await this.app.vault.adapter.read(css_font_path)
-					let css_string = ""
-					if (this.settings.custom_css_mode) {
-						css_string = this.settings.custom_css
+					const files = await this.app.vault.adapter.list(this.font_folder_path)
+					for (const file of files.files) {
+						const file_name = file.split('/')[2]
+						await this.process_and_load_font(file_name, true)
 					}
-					else {
-						css_string = get_default_css(font_family_name)
-					}
-					if (this.settings.force_mode)
-						css_string = css_string + `
-					* {
-						font-family: ${font_family_name} !important;
-					}
-						`
-					applyCss(content, 'custom_font_base64')
-					applyCss(css_string, 'custom_font_general')
 				}
 			} else {
 				applyCss('', 'custom_font_base64')
@@ -139,8 +109,72 @@ export default class FontPlugin extends Plugin {
 
 	}
 
+	private async process_and_load_font(font_file_name: string,load_all_fonts:boolean) {
+		console.log('loading %s', font_file_name);
+		const css_font_path = `${this.plugin_folder_path}/${font_file_name.toLowerCase().replace('.', '_')}.css`;
+
+		if (!await this.app.vault.adapter.exists(css_font_path)) {
+			await this.convert_font_to_css(font_file_name, css_font_path);
+		}
+		else {
+			await this.load_font(css_font_path, load_all_fonts)
+			await this.load_css(font_file_name)
+		}
+	}
+	private async load_font(css_font_path: string,appendMode: boolean)
+	{
+		const content = await this.app.vault.adapter.read(css_font_path);
+		applyCss(content, 'custom_font_base64',appendMode);
+	}
+	private async load_css(font_file_name: string) {
+		
+		let css_string = "";
+		const font_family_name: string = font_file_name.split('.')[0];
+
+		if (this.settings.custom_css_mode) {
+			css_string = this.settings.custom_css;
+		}
+		else {
+			css_string = get_default_css(font_family_name);
+		}
+		if (this.settings.force_mode)
+			css_string += `
+					* {
+						font-family: ${font_family_name} !important;
+					}
+						`;
+		applyCss(css_string, 'custom_font_general');
+	}
+
+	private async convert_font_to_css(font_file_name: string, css_font_path: string) {
+		new Notice("Processing Font files");
+		const file = `${this.config_dir}/fonts/${font_file_name}`;
+		const arrayBuffer = await this.app.vault.adapter.readBinary(file);
+
+		// Convert to base64
+		const base64 = arrayBufferToBase64(arrayBuffer);
+		const css_type_font: { [key: string]: string; } = {
+			'woff': 'font/woff',
+			'ttf': 'font/truetype',
+			'woff2': 'font/woff2'
+		};
+
+		const font_family_name: string = font_file_name.split('.')[0];
+		const font_extension_name: string = font_file_name.split('.')[1];
+
+		const base64_css = `@font-face{
+	font-family: '${font_family_name}';
+	src: url(data:${css_type_font[font_extension_name]};base64,${base64});
+}`;
+		this.app.vault.adapter.write(css_font_path, base64_css);
+		console.log('saved font %s into %s', font_family_name, css_font_path);
+
+		console.log('Font CSS Saved into %s', css_font_path);
+		await this.load_plugin();
+	}
+
 	async onload() {
-		this.process_font()
+		this.load_plugin()
 		// This adds a settings tab so the user can configure various aspects of the plugin
 
 		this.addSettingTab(new FontSettingTab(this.app, this));
@@ -194,7 +228,7 @@ class FontSettingTab extends PluginSettingTab {
 					options.push({ name: file_name, value: file_name });
 				}
 			}
-			options.push({name: "All fonts", value:"all"})
+			options.push({name: "Multiple fonts", value:"all"})
 
 		}
 		catch (error) {
@@ -203,7 +237,7 @@ class FontSettingTab extends PluginSettingTab {
 		// Show combo box in UI somehow
 		new Setting(containerEl)
 			.setName("Font")
-			.setDesc("Choose font")
+			.setDesc("Choose font (If you choose multiple fonts option, we will load and process all fonts in the folder for you)")
 			.addDropdown((dropdown) => {
 				// Add options
 				for (const opt of options) {
@@ -214,7 +248,7 @@ class FontSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.font = value
 						await this.plugin.saveSettings()
-						await this.plugin.process_font()
+						await this.plugin.load_plugin()
 					});
 			});
 		new Setting(containerEl)
@@ -225,7 +259,7 @@ class FontSettingTab extends PluginSettingTab {
 				toggle.onChange(async (value) => {
 					this.plugin.settings.force_mode = value
 					await this.plugin.saveSettings();
-					await this.plugin.process_font()
+					await this.plugin.load_plugin()
 				})
 			})
 		new Setting(containerEl)
@@ -239,7 +273,7 @@ class FontSettingTab extends PluginSettingTab {
 					}
 					this.plugin.settings.custom_css_mode = value
 					this.plugin.saveSettings()
-					this.plugin.process_font()
+					this.plugin.load_plugin()
 					this.display()
 				})
 			})
@@ -251,7 +285,7 @@ class FontSettingTab extends PluginSettingTab {
 					text.onChange(async (new_value) => {
 						this.plugin.settings.custom_css = new_value
 						await this.plugin.saveSettings();
-						await this.plugin.process_font()
+						await this.plugin.load_plugin()
 					}
 					)
 					text.setDisabled(!this.plugin.settings.custom_css_mode)
