@@ -68,7 +68,9 @@ function applyCss(css: string, css_id: string) {
 
 export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
-
+	config_dir: string =  this.app.vault.configDir;
+	plugin_folder_path: string = `${this.config_dir}/plugins/custom-font-loader`
+	
 	async process_font() {
 		await this.loadSettings()
 		try {
@@ -79,14 +81,12 @@ export default class FontPlugin extends Plugin {
 				console.log('loading %s', this.settings.font)
 				const font_family_name: string = this.settings.font.split('.')[0]
 				const font_extension_name: string = this.settings.font.split('.')[1]
-				const config_dir = this.app.vault.configDir
-				const plugin_folder_path = `${config_dir}/plugins/custom-font-loader`
 
-				const css_font_path = `${plugin_folder_path}/${this.settings.font.toLowerCase().replace('.', '_')}.css`
+				const css_font_path = `${this.plugin_folder_path}/${this.settings.font.toLowerCase().replace('.', '_')}.css`
 
 				if (this.settings.font != this.settings.processed_font || !await this.app.vault.adapter.exists(css_font_path)) {
 					new Notice("Processing Font files");
-					const file = `${config_dir}/fonts/${this.settings.font}`
+					const file = `${this.config_dir}/fonts/${this.settings.font}`
 					const arrayBuffer = await this.app.vault.adapter.readBinary(file);
 
 					// Convert to base64
