@@ -194,7 +194,7 @@ class FontSettingTab extends PluginSettingTab {
 					options.push({ name: file_name, value: file_name });
 				}
 			}
-
+			options.push({name: "All fonts", value:"all"})
 
 		}
 		catch (error) {
