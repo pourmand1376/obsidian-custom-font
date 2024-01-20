@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 	custom_css: "",
 };
 
-function get_default_css(font_family_name: string,css_class:string=':root') {
+function get_default_css(font_family_name: string,css_class:string=':root *') {
 	return `${css_class} {
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
@@ -91,6 +91,7 @@ export default class FontPlugin extends Plugin {
 						await this.process_and_load_font(font_file_name, false);
 					}
 				else {
+					applyCss('', 'custom_font_base64')
 					const files = await this.app.vault.adapter.list(this.font_folder_path)
 					for (const file of files.files) {
 						const file_name = file.split('/')[2]
@@ -285,6 +286,7 @@ class FontSettingTab extends PluginSettingTab {
 					text.onChange(async (new_value) => {
 						this.plugin.settings.custom_css = new_value
 						await this.plugin.saveSettings();
+						await this.plugin.load_plugin();
 					}
 					)
 					text.setDisabled(!this.plugin.settings.custom_css_mode)
@@ -306,7 +308,7 @@ class FontSettingTab extends PluginSettingTab {
 								for (const file of files.files) {
 									const file_name = file.split('/')[2]
 									const font_family = file_name.split('.')[0]
-									final_str += get_default_css(font_family, '.'+font_family)
+									final_str += get_default_css(font_family, '.'+font_family +' * ')
 								}
 								text.setValue(final_str)
 							}
