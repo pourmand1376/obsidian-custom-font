@@ -32,7 +32,7 @@ function get_default_css(font_family_name: string,css_class:string=':root *') {
 		--font-text-override: ${font_family_name},
 		--font-monospace-override: ${font_family_name},	
 	}
-	`;
+`;
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
