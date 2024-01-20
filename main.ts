@@ -314,7 +314,7 @@ class FontSettingTab extends PluginSettingTab {
 								for (const file of files.files) {
 									const file_name = file.split('/')[2]
 									const font_family = file_name.split('.')[0]
-									final_str += get_custom_css(font_family, '.'+font_family +' * ')
+									final_str +="\n"+ get_custom_css(font_family, '.'+font_family)
 								}
 								text.setValue(final_str)
 							}
