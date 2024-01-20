@@ -34,6 +34,12 @@ function get_default_css(font_family_name: string,css_class:string=':root *') {
 	}
 `;
 }
+function get_custom_css(font_family_name: string, css_class: string=":root *")
+{
+	return `${css_class} * {
+		font-family: ${font_family_name} !important;
+		}`
+}
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
@@ -308,7 +314,7 @@ class FontSettingTab extends PluginSettingTab {
 								for (const file of files.files) {
 									const file_name = file.split('/')[2]
 									const font_family = file_name.split('.')[0]
-									final_str += get_default_css(font_family, '.'+font_family +' * ')
+									final_str += get_custom_css(font_family, '.'+font_family +' * ')
 								}
 								text.setValue(final_str)
 							}
