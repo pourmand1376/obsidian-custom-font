@@ -22,8 +22,8 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 	custom_css: "",
 };
 
-function get_default_css(font_family_name: string) {
-	return `:root {
+function get_default_css(font_family_name: string,css_class:string=':root') {
+	return `${css_class} {
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
 		--font-family-editor: ${font_family_name};
@@ -210,12 +210,12 @@ class FontSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 
 		containerEl.empty();
+		const font_folder_path = `${this.app.vault.configDir}/fonts`
 
 		const infoContainer = containerEl.createDiv();
 		infoContainer.setText("In Order to set the font, copy your font into '.obsidian/fonts/' directory.");
 		const options = [{ name: "none", value: "None" }];
 		try {
-			const font_folder_path = `${this.app.vault.configDir}/fonts`
 			if (!await this.app.vault.adapter.exists(font_folder_path)) {
 				await this.app.vault.adapter.mkdir(font_folder_path)
 			}
@@ -281,11 +281,10 @@ class FontSettingTab extends PluginSettingTab {
 			new Setting(containerEl)
 				.setName("Custom CSS Style")
 				.setDesc("Input your custom css style")
-				.addTextArea((text) => {
+				.addTextArea(async (text) => {
 					text.onChange(async (new_value) => {
 						this.plugin.settings.custom_css = new_value
 						await this.plugin.saveSettings();
-						await this.plugin.load_plugin()
 					}
 					)
 					text.setDisabled(!this.plugin.settings.custom_css_mode)
@@ -297,7 +296,24 @@ class FontSettingTab extends PluginSettingTab {
 						} catch (error) {
 							console.log(error)
 						}
-						text.setValue(get_default_css(font_family_name))
+						
+						if (font_family_name=='all'){
+							if (await this.app.vault.adapter.exists(font_folder_path)) {
+								const files = await this.app.vault.adapter.list(font_folder_path)
+								
+								let final_str = ""
+								// Add files as options
+								for (const file of files.files) {
+									const file_name = file.split('/')[2]
+									const font_family = file_name.split('.')[0]
+									final_str += get_default_css(font_family, '.'+font_family)
+								}
+								text.setValue(final_str)
+							}
+						}
+						else{
+							text.setValue(get_default_css(font_family_name))
+						}
 					}
 					else {
 						text.setValue(this.plugin.settings.custom_css)
@@ -306,8 +322,6 @@ class FontSettingTab extends PluginSettingTab {
 
 					text.inputEl.style.width = "100%"
 					text.inputEl.style.height = "100px"
-
-
 				})
 		}
 
