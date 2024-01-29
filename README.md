@@ -8,6 +8,9 @@ Spice up your Obsidian notes with custom fonts! This plugin is created since cur
 
 ![Plugin-settings-page](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.1.6/plugin-preview.gif)
 
+![Multiple-fonts](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.3.1/multiple_fonts.gif)
+
+
 ## New Version
 
 ![Custom-font-preview](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.2.0/custom-font-preview.png)
