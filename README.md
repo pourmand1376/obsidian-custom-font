@@ -26,13 +26,13 @@ So no matter what device you use Obsidian on, you can customize your notes with 
 
 ## To get started
 
-- Add your font files (.woff, .ttf, and .woff2) to your vault's `.obsidian/fonts` folder. 
+- Add your font files (.woff, .ttf, .woff2 and .otf) to your vault's `.obsidian/fonts` folder. 
 - Open the plugin settings and choose your desired font from the dropdown menu.
 - The selected font will now be applied across your entire vault. You can switch fonts anytime.
 
 ## Key Features
 
-- Supports .woff, .ttf, and .woff2. 
+- Supports .woff, .ttf, .woff2 and .otf . 
 - Simple settings menu to pick your font. Change it up anytime.
 - Applies chosen font globally to your entire vault.
 - Tested with a wide range of fonts for full compatibility.
