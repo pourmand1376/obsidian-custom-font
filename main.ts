@@ -22,7 +22,7 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 	custom_css: "",
 };
 
-function get_default_css(font_family_name: string,css_class:string=':root *') {
+function get_default_css(font_family_name: string,css_class=':root *') {
 	return `${css_class} {
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
@@ -34,7 +34,7 @@ function get_default_css(font_family_name: string,css_class:string=':root *') {
 	}
 `;
 }
-function get_custom_css(font_family_name: string, css_class: string=":root *")
+function get_custom_css(font_family_name: string, css_class=":root *")
 {
 	return `${css_class} * {
 		font-family: ${font_family_name} !important;
@@ -50,7 +50,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	return btoa(binary);
 }
 
-function applyCss(css: string, css_id: string, appendMode: boolean = false) {
+function applyCss(css: string, css_id: string, appendMode = false) {
 	// Check if style tag with the given ID already exists
 	const existingStyle = document.getElementById(css_id);
 
@@ -81,7 +81,7 @@ function applyCss(css: string, css_id: string, appendMode: boolean = false) {
 export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 	config_dir: string =  this.app.vault.configDir;
-	plugin_folder_path: string = `${this.config_dir}/plugins/custom-font-loader`
+	plugin_folder_path = `${this.config_dir}/plugins/custom-font-loader`
 	font_folder_path = `${this.app.vault.configDir}/fonts`
 
 	async load_plugin() {
@@ -160,18 +160,31 @@ export default class FontPlugin extends Plugin {
 
 		// Convert to base64
 		const base64 = arrayBufferToBase64(arrayBuffer);
-		const css_type_font: { [key: string]: string; } = {
-			'woff': 'font/woff',
-			'ttf': 'font/truetype',
-			'woff2': 'font/woff2'
-		};
 
 		const font_family_name: string = font_file_name.split('.')[0];
 		const font_extension_name: string = font_file_name.split('.')[1];
 
+		let css_type="";
+		switch(font_extension_name) {
+		case 'woff':
+			css_type = 'font/woff';
+			break;
+		case 'ttf': 
+			css_type = 'font/truetype';
+			break;
+		case 'woff2':
+			css_type = 'font/woff2';
+			break;
+		case 'otf':
+			css_type = 'font/opentype'
+			break;
+		default:
+			css_type = 'font';
+		}
+
 		const base64_css = `@font-face{
 	font-family: '${font_family_name}';
-	src: url(data:${css_type_font[font_extension_name]};base64,${base64});
+	src: url(data:${css_type};base64,${base64});
 }`;
 		this.app.vault.adapter.write(css_font_path, base64_css);
 		console.log('saved font %s into %s', font_family_name, css_font_path);
