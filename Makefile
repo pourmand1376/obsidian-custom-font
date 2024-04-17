@@ -19,6 +19,7 @@ build: ## run build
 
 install_es_lint: ## install linter
 	npm install -g eslint
+	# npm install -g eslint@^8
 
 lint: ## lint main.ts file
 	eslint main.ts

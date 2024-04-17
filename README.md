@@ -2,7 +2,7 @@
 
 # Obsidian Custom Font Plugin
 
-Spice up your Obsidian notes with custom fonts! This plugin is created since currently obsidian doesn't support setting custom fonts easily. This is the case, especially in Android and IOS. 
+Spice up your Obsidian notes with custom fonts! This plugin is created since currently obsidian doesn't support setting custom fonts easily. This is the case, especially in Android and IOS. If you want to set up your fonts once and make it work on all platforms (Android, Mac, Windows, Linux, IPhone) this is for you! 
 
 ## Plugin Settings Page
 

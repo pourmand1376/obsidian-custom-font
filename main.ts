@@ -9,6 +9,7 @@ import {
 
 
 interface FontPluginSettings {
+	font_folder: string;
 	font: string;
 	force_mode: boolean;
 	custom_css_mode: boolean;
@@ -16,6 +17,7 @@ interface FontPluginSettings {
 }
 
 const DEFAULT_SETTINGS: FontPluginSettings = {
+	font_folder: "",
 	font: "None",
 	force_mode: false,
 	custom_css_mode: false,
@@ -82,7 +84,6 @@ export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 	config_dir: string =  this.app.vault.configDir;
 	plugin_folder_path = `${this.config_dir}/plugins/custom-font-loader`
-	font_folder_path = `${this.app.vault.configDir}/fonts`
 
 	async load_plugin() {
 		await this.loadSettings()
@@ -98,7 +99,7 @@ export default class FontPlugin extends Plugin {
 					}
 				else {
 					applyCss('', 'custom_font_base64')
-					const files = await this.app.vault.adapter.list(this.font_folder_path)
+					const files = await this.app.vault.adapter.list(this.settings.font_folder)
 					for (const file of files.files) {
 						const file_name = file.split('/')[2]
 						await this.process_and_load_font(file_name, true)
@@ -155,7 +156,7 @@ export default class FontPlugin extends Plugin {
 
 	private async convert_font_to_css(font_file_name: string, css_font_path: string) {
 		new Notice("Processing Font files");
-		const file = `${this.config_dir}/fonts/${font_file_name}`;
+		const file = `${this.settings.font_folder}/${font_file_name}`;
 		const arrayBuffer = await this.app.vault.adapter.readBinary(file);
 
 		// Convert to base64
@@ -228,12 +229,31 @@ class FontSettingTab extends PluginSettingTab {
 
 	async display() {
 		const { containerEl } = this;
-
+	
 		containerEl.empty();
-		const font_folder_path = `${this.app.vault.configDir}/fonts`
 
 		const infoContainer = containerEl.createDiv();
-		infoContainer.setText("In Order to set the font, copy your font into '.obsidian/fonts/' directory.");
+		infoContainer.setText("In Order to set the font, copy your font into fonts directory that you set");
+		
+		new Setting(containerEl)
+			.setName("Fonts Folder")
+			.setDesc("Folder to look for your custom fonts")
+			.addText(text => {
+					text.onChange(async value => {
+						this.plugin.settings.font_folder = value
+						await this.plugin.saveSettings()
+						await this.plugin.loadSettings()
+					})
+					if (this.plugin.settings.font_folder.trim()==""){
+						this.plugin.settings.font_folder = `${this.app.vault.configDir}/fonts`;
+					}
+					text.setValue(this.plugin.settings.font_folder)
+				}
+			)
+		
+
+		const font_folder_path = this.plugin.settings.font_folder
+
 		const options = [{ name: "none", value: "None" }];
 		try {
 			if (!await this.app.vault.adapter.exists(font_folder_path)) {
@@ -255,6 +275,8 @@ class FontSettingTab extends PluginSettingTab {
 			console.log(error)
 		}
 		// Show combo box in UI somehow
+		
+			
 		new Setting(containerEl)
 			.setName("Font")
 			.setDesc("Choose font (If you choose multiple fonts option, we will load and process all fonts in the folder for you)")
