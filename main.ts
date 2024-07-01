@@ -101,7 +101,7 @@ export default class FontPlugin extends Plugin {
 					applyCss('', 'custom_font_base64')
 					const files = await this.app.vault.adapter.list(this.settings.font_folder)
 					for (const file of files.files) {
-						const file_name = file.split('/')[2]
+						const file_name = file.replace(this.settings.font_folder,"")
 						await this.process_and_load_font(file_name, true)
 					}
 				}
@@ -162,8 +162,8 @@ export default class FontPlugin extends Plugin {
 		// Convert to base64
 		const base64 = arrayBufferToBase64(arrayBuffer);
 
-		const font_family_name: string = font_file_name.split('.')[0];
-		const font_extension_name: string = font_file_name.split('.')[1];
+		const font_family_name: string = font_file_name.split('.')[0].toLowerCase();
+		const font_extension_name: string = font_file_name.split('.')[1].toLowerCase();
 
 		let css_type="";
 		switch(font_extension_name) {
@@ -247,6 +247,8 @@ class FontSettingTab extends PluginSettingTab {
 					if (this.plugin.settings.font_folder.trim()==""){
 						this.plugin.settings.font_folder = `${this.app.vault.configDir}/fonts`;
 					}
+					if (!this.plugin.settings.font_folder.endsWith("/"))
+						this.plugin.settings.font_folder = this.plugin.settings.font_folder + "/"
 					text.setValue(this.plugin.settings.font_folder)
 				}
 			)
@@ -264,7 +266,7 @@ class FontSettingTab extends PluginSettingTab {
 
 				// Add files as options
 				for (const file of files.files) {
-					const file_name = file.split('/')[2]
+					const file_name = file.replace(font_folder_path,"")
 					options.push({ name: file_name, value: file_name });
 				}
 			}
