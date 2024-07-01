@@ -276,8 +276,19 @@ class FontSettingTab extends PluginSettingTab {
 		catch (error) {
 			console.log(error)
 		}
-		// Show combo box in UI somehow
-		
+
+		new Setting(containerEl)
+		.setName("Reload fonts from folder")
+		.setDesc("This button reloades from the folder you specified (it also creates the folder for you)")
+		.addButton((button) => {
+			button.setButtonText("Reload")
+			button.onClick(callback => {
+				this.plugin.saveSettings();
+				this.plugin.load_plugin();
+				this.display();
+			})
+		})
+		this.containerEl.createDiv()
 			
 		new Setting(containerEl)
 			.setName("Font")
