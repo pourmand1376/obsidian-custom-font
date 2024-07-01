@@ -292,7 +292,8 @@ class FontSettingTab extends PluginSettingTab {
 			
 		new Setting(containerEl)
 			.setName("Font")
-			.setDesc("Choose font (If you choose multiple fonts option, we will load and process all fonts in the folder for you)")
+			.setDesc(`Choose font (If you can't see your fonts, make sure your fonts are in the folder you specified and hit reload. 
+				Also if you choose multiple fonts option, we will load and process all fonts in the folder for you. In that Case, enable Custom CSS Mode)`)
 			.addDropdown((dropdown) => {
 				// Add options
 				for (const opt of options) {
