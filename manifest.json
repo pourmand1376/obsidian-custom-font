@@ -1,7 +1,7 @@
 {
 	"id": "custom-font-loader",
 	"name": "Custom Font Loader",
-	"version": "1.5.1",
+	"version": "1.5.2",
 	"minAppVersion": "0.15.0",
 	"description": "Customize your Obsidian vault with any font you want (+ Support for Android and IOS)",
 	"author": "Amir Pourmand",
