@@ -17,12 +17,17 @@ dev: ## run dev
 build: ## run build
 	npm run build
 
+install_local: ## install locally
+	npm install 
+
 install_es_lint: ## install linter
-	npm install -g eslint
-	# npm install -g eslint@^8
+	#npm install -g eslint
+	npm install -g eslint@^8
+	
 
 lint: ## lint main.ts file
 	eslint main.ts
+	# linter doesn't work
 
 alpha_version: ## create an alpha version
 	npm version prerelease --preid=alpha
