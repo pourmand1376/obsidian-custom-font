@@ -19,6 +19,7 @@ build: ## run build
 
 install_local: ## install locally
 	npm install 
+	brew install jq # only for mac
 
 install_es_lint: ## install linter
 	#npm install -g eslint
