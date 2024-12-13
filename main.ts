@@ -320,6 +320,7 @@ class FontSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					await this.plugin.load_plugin();
 				});
+				toggle.disabled = this.plugin.settings.font == "None";
 			});
 		new Setting(containerEl)
 			.setName("Custom CSS Mode")
@@ -337,6 +338,7 @@ class FontSettingTab extends PluginSettingTab {
 					this.plugin.load_plugin();
 					this.display();
 				});
+				toggle.disabled = this.plugin.settings.font == "None";
 			});
 		if (this.plugin.settings.custom_css_mode) {
 			new Setting(containerEl)
@@ -393,6 +395,7 @@ class FontSettingTab extends PluginSettingTab {
 
 					text.inputEl.style.width = "100%";
 					text.inputEl.style.height = "100px";
+					text.disabled = this.plugin.settings.font == "None";
 				});
 		}
 	}
