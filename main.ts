@@ -306,97 +306,100 @@ class FontSettingTab extends PluginSettingTab {
 						this.plugin.settings.font = value;
 						await this.plugin.saveSettings();
 						await this.plugin.load_plugin();
+						this.display();
 					});
 			});
-		new Setting(containerEl)
-			.setName("Force Style")
-			.setDesc(
-				"This option should only be used if you have installed a community theme and normal mode doesn't work"
-			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.force_mode);
-				toggle.onChange(async (value) => {
-					this.plugin.settings.force_mode = value;
-					await this.plugin.saveSettings();
-					await this.plugin.load_plugin();
-				});
-				toggle.disabled = this.plugin.settings.font == "None";
-			});
-		new Setting(containerEl)
-			.setName("Custom CSS Mode")
-			.setDesc(
-				"If you want to apply a custom css style rather than default style, choose this."
-			)
-			.addToggle((toggle) => {
-				toggle.setValue(this.plugin.settings.custom_css_mode);
-				toggle.onChange(async (value) => {
-					if (this.plugin.settings.custom_css_mode == false) {
-						this.plugin.settings.custom_css = "";
-					}
-					this.plugin.settings.custom_css_mode = value;
-					this.plugin.saveSettings();
-					this.plugin.load_plugin();
-					this.display();
-				});
-				toggle.disabled = this.plugin.settings.font == "None";
-			});
-		if (this.plugin.settings.custom_css_mode) {
+
+		if (this.plugin.settings.font.toLowerCase() != "none") {
+
 			new Setting(containerEl)
-				.setName("Custom CSS Style")
-				.setDesc("Input your custom css style")
-				.addTextArea(async (text) => {
-					text.onChange(async (new_value) => {
-						this.plugin.settings.custom_css = new_value;
+				.setName("Force Style")
+				.setDesc(
+					"This option should only be used if you have installed a community theme and normal mode doesn't work"
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(this.plugin.settings.force_mode);
+					toggle.onChange(async (value) => {
+						this.plugin.settings.force_mode = value;
 						await this.plugin.saveSettings();
 						await this.plugin.load_plugin();
 					});
-					text.setDisabled(!this.plugin.settings.custom_css_mode);
-
-					if (this.plugin.settings.custom_css == "") {
-						let font_family_name = "";
-						try {
-							font_family_name =
-								this.plugin.settings.font.split(".")[0];
-						} catch (error) {
-							console.log(error);
+				});
+			new Setting(containerEl)
+				.setName("Custom CSS Mode")
+				.setDesc(
+					"If you want to apply a custom css style rather than default style, choose this."
+				)
+				.addToggle((toggle) => {
+					toggle.setValue(this.plugin.settings.custom_css_mode);
+					toggle.onChange(async (value) => {
+						if (this.plugin.settings.custom_css_mode == false) {
+							this.plugin.settings.custom_css = "";
 						}
+						this.plugin.settings.custom_css_mode = value;
+						this.plugin.saveSettings();
+						this.plugin.load_plugin();
+						this.display();
+					});
+				});
+			if (this.plugin.settings.custom_css_mode) {
+				new Setting(containerEl)
+					.setName("Custom CSS Style")
+					.setDesc("Input your custom css style")
+					.addTextArea(async (text) => {
+						text.onChange(async (new_value) => {
+							this.plugin.settings.custom_css = new_value;
+							await this.plugin.saveSettings();
+							await this.plugin.load_plugin();
+						});
+						text.setDisabled(!this.plugin.settings.custom_css_mode);
 
-						if (font_family_name == "all") {
-							if (
-								await this.app.vault.adapter.exists(
-									font_folder_path
-								)
-							) {
-								const files = await this.app.vault.adapter.list(
-									font_folder_path
-								);
+						if (this.plugin.settings.custom_css == "") {
+							let font_family_name = "";
+							try {
+								font_family_name =
+									this.plugin.settings.font.split(".")[0];
+							} catch (error) {
+								console.log(error);
+							}
 
-								let final_str = "";
-								// Add files as options
-								for (const file of files.files) {
-									const file_name = file.split("/")[2];
-									const font_family = file_name.split(".")[0];
-									final_str +=
-										"\n" +
-										get_custom_css(
-											font_family,
-											"." + font_family
-										);
+							if (font_family_name == "all") {
+								if (
+									await this.app.vault.adapter.exists(
+										font_folder_path
+									)
+								) {
+									const files = await this.app.vault.adapter.list(
+										font_folder_path
+									);
+
+									let final_str = "";
+									// Add files as options
+									for (const file of files.files) {
+										const file_name = file.split("/")[2];
+										const font_family = file_name.split(".")[0];
+										final_str +=
+											"\n" +
+											get_custom_css(
+												font_family,
+												"." + font_family
+											);
+									}
+									text.setValue(final_str);
 								}
-								text.setValue(final_str);
+							} else {
+								text.setValue(get_default_css(font_family_name));
 							}
 						} else {
-							text.setValue(get_default_css(font_family_name));
+							text.setValue(this.plugin.settings.custom_css);
 						}
-					} else {
-						text.setValue(this.plugin.settings.custom_css);
-					}
-					text.onChanged();
+						text.onChanged();
 
-					text.inputEl.style.width = "100%";
-					text.inputEl.style.height = "100px";
-					text.disabled = this.plugin.settings.font == "None";
-				});
+						text.inputEl.style.width = "100%";
+						text.inputEl.style.height = "100px";
+
+					});
+			}
 		}
 	}
 }
