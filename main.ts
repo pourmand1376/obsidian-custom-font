@@ -21,10 +21,10 @@ function get_default_css(font_family_name: string, css_class = ":root *") {
 		--font-default: ${font_family_name};
 		--default-font: ${font_family_name};
 		--font-family-editor: ${font_family_name};
-		--font-monospace-default: ${font_family_name},
-		--font-interface-override: ${font_family_name},
-		--font-text-override: ${font_family_name},
-		--font-monospace-override: ${font_family_name},	
+		--font-monospace-default: ${font_family_name};
+		--font-interface-override: ${font_family_name};
+		--font-text-override: ${font_family_name};
+		--font-monospace-override: ${font_family_name};	
 	}
 `;
 }
