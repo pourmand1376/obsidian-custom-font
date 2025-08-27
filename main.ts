@@ -74,6 +74,7 @@ export default class FontPlugin extends Plugin {
 	settings: FontPluginSettings;
 	config_dir: string = this.app.vault.configDir;
 	plugin_folder_path = `${this.config_dir}/plugins/custom-font-loader`;
+	private processingNoticeShown = false;
 
 	async load_plugin() {
 		await this.loadSettings();
@@ -92,6 +93,10 @@ export default class FontPlugin extends Plugin {
 							this.settings.font_folder,
 							""
 						);
+						// Skip hidden files and ensure we have a valid font file
+						if (file_name.startsWith(".") || !file_name.includes(".")) {
+							continue;
+						}
 						await this.process_and_load_font(file_name, true);
 					}
 				}
@@ -100,7 +105,8 @@ export default class FontPlugin extends Plugin {
 				applyCss("", "custom_font_general");
 			}
 		} catch (error) {
-			new Notice(error);
+			console.error("Error loading fonts:", error);
+			new Notice(`Error loading fonts: ${error.message || error}`);
 		}
 	}
 
@@ -108,16 +114,24 @@ export default class FontPlugin extends Plugin {
 		font_file_name: string,
 		load_all_fonts: boolean
 	) {
-		console.log("loading %s", font_file_name);
-		const css_font_path = `${this.plugin_folder_path}/${font_file_name
-			.toLowerCase()
-			.replace(".", "_")}.css`;
+		try {
+			console.log("loading %s", font_file_name);
+			const css_font_path = `${this.plugin_folder_path}/${font_file_name
+				.toLowerCase()
+				.replace(".", "_")}.css`;
 
-		if (!(await this.app.vault.adapter.exists(css_font_path))) {
-			await this.convert_font_to_css(font_file_name, css_font_path);
-		} else {
-			await this.load_font(css_font_path, load_all_fonts);
-			await this.load_css(font_file_name);
+			if (!(await this.app.vault.adapter.exists(css_font_path))) {
+				await this.convert_font_to_css(font_file_name, css_font_path);
+				// Load the font directly after conversion
+				await this.load_font(css_font_path, load_all_fonts);
+				await this.load_css(font_file_name);
+			} else {
+				await this.load_font(css_font_path, load_all_fonts);
+				await this.load_css(font_file_name);
+			}
+		} catch (error) {
+			console.error(`Error processing font ${font_file_name}:`, error);
+			new Notice(`Failed to process font: ${font_file_name}`);
 		}
 	}
 	private async load_font(css_font_path: string, appendMode: boolean) {
@@ -146,47 +160,61 @@ export default class FontPlugin extends Plugin {
 		font_file_name: string,
 		css_font_path: string
 	) {
-		new Notice("Processing Font files");
-		const file = `${this.settings.font_folder}/${font_file_name}`;
-		const arrayBuffer = await this.app.vault.adapter.readBinary(file);
+		try {
+			// Show notice only once to prevent spam
+			if (!this.processingNoticeShown) {
+				new Notice("Processing Font files");
+				this.processingNoticeShown = true;
+				// Reset the flag after a delay to allow for future operations
+				setTimeout(() => {
+					this.processingNoticeShown = false;
+				}, 5000);
+			}
+			
+			const file = `${this.settings.font_folder}/${font_file_name}`;
+			const arrayBuffer = await this.app.vault.adapter.readBinary(file);
 
-		// Convert to base64
-		const base64 = arrayBufferToBase64(arrayBuffer);
+			// Convert to base64
+			const base64 = arrayBufferToBase64(arrayBuffer);
 
-		const font_family_name: string = font_file_name
-			.split(".")[0]
-			.toLowerCase();
-		const font_extension_name: string = font_file_name
-			.split(".")[1]
-			.toLowerCase();
+			const font_family_name: string = font_file_name
+				.split(".")[0]
+				.toLowerCase();
+			const font_extension_name: string = font_file_name
+				.split(".")[1]
+				.toLowerCase();
 
-		let css_type = "";
-		switch (font_extension_name) {
-			case "woff":
-				css_type = "font/woff";
-				break;
-			case "ttf":
-				css_type = "font/truetype";
-				break;
-			case "woff2":
-				css_type = "font/woff2";
-				break;
-			case "otf":
-				css_type = "font/opentype";
-				break;
-			default:
-				css_type = "font";
-		}
+			let css_type = "";
+			switch (font_extension_name) {
+				case "woff":
+					css_type = "font/woff";
+					break;
+				case "ttf":
+					css_type = "font/truetype";
+					break;
+				case "woff2":
+					css_type = "font/woff2";
+					break;
+				case "otf":
+					css_type = "font/opentype";
+					break;
+				default:
+					css_type = "font";
+			}
 
-		const base64_css = `@font-face{
+			const base64_css = `@font-face{
 	font-family: '${font_family_name}';
 	src: url(data:${css_type};base64,${base64});
 }`;
-		this.app.vault.adapter.write(css_font_path, base64_css);
-		console.log("saved font %s into %s", font_family_name, css_font_path);
+			await this.app.vault.adapter.write(css_font_path, base64_css);
+			console.log("saved font %s into %s", font_family_name, css_font_path);
 
-		console.log("Font CSS Saved into %s", css_font_path);
-		await this.load_plugin();
+			console.log("Font CSS Saved into %s", css_font_path);
+			// Removed the recursive call to load_plugin() - this was causing infinite loop
+		} catch (error) {
+			console.error(`Error converting font ${font_file_name} to CSS:`, error);
+			throw error; // Re-throw to be handled by caller
+		}
 	}
 
 	async onload() {
