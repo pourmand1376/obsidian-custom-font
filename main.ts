@@ -93,10 +93,6 @@ export default class FontPlugin extends Plugin {
 							this.settings.font_folder,
 							""
 						);
-						// Skip hidden files and ensure we have a valid font file
-						if (file_name.startsWith(".") || !file_name.includes(".")) {
-							continue;
-						}
 						await this.process_and_load_font(file_name, true);
 					}
 				}
@@ -174,9 +170,6 @@ export default class FontPlugin extends Plugin {
 			const file = `${this.settings.font_folder}/${font_file_name}`;
 			const arrayBuffer = await this.app.vault.adapter.readBinary(file);
 
-			// Convert to base64
-			const base64 = arrayBufferToBase64(arrayBuffer);
-
 			const font_family_name: string = font_file_name
 				.split(".")[0]
 				.toLowerCase();
@@ -184,33 +177,60 @@ export default class FontPlugin extends Plugin {
 				.split(".")[1]
 				.toLowerCase();
 
-			let css_type = "";
-			switch (font_extension_name) {
-				case "woff":
-					css_type = "font/woff";
-					break;
-				case "ttf":
-					css_type = "font/truetype";
-					break;
-				case "woff2":
-					css_type = "font/woff2";
-					break;
-				case "otf":
-					css_type = "font/opentype";
-					break;
-				default:
-					css_type = "font";
-			}
+			// Use CSS Font Loading API for better performance
+			const fontBlob = new Blob([arrayBuffer]);
+			const fontUrl = URL.createObjectURL(fontBlob);
+			
+			const fontFace = new FontFace(font_family_name, `url(${fontUrl})`, {
+				display: 'swap' // Better loading performance
+			});
 
-			const base64_css = `@font-face{
+			try {
+				await fontFace.load();
+				// Check if document.fonts.add is available (modern browsers)
+				const fonts = document.fonts as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+				if (fonts && typeof fonts.add === 'function') {
+					fonts.add(fontFace); // eslint-disable-line @typescript-eslint/no-explicit-any
+					console.log(`Font ${font_family_name} loaded successfully using CSS Font Loading API`);
+				} else {
+					console.log(`CSS Font Loading API not fully supported, falling back to traditional method for ${font_family_name}`);
+					throw new Error('CSS Font Loading API not supported');
+				}
+				
+				// Still create CSS file for backward compatibility
+				const base64 = arrayBufferToBase64(arrayBuffer);
+				const css_type = font_extension_name === "woff" ? "font/woff" :
+								font_extension_name === "woff2" ? "font/woff2" :
+								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
+				
+				const base64_css = `@font-face{
 	font-family: '${font_family_name}';
 	src: url(data:${css_type};base64,${base64});
+	font-display: swap;
 }`;
-			await this.app.vault.adapter.write(css_font_path, base64_css);
-			console.log("saved font %s into %s", font_family_name, css_font_path);
+				await this.app.vault.adapter.write(css_font_path, base64_css);
+				
+				// Clean up object URL to prevent memory leaks
+				URL.revokeObjectURL(fontUrl);
+			} catch (fontLoadError) {
+				console.warn(`CSS Font Loading API failed for ${font_family_name}, falling back to traditional method:`, fontLoadError);
+				URL.revokeObjectURL(fontUrl);
+				
+				// Fallback to traditional base64 approach
+				const base64 = arrayBufferToBase64(arrayBuffer);
+				const css_type = font_extension_name === "woff" ? "font/woff" :
+								font_extension_name === "woff2" ? "font/woff2" :
+								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
+				
+				const base64_css = `@font-face{
+	font-family: '${font_family_name}';
+	src: url(data:${css_type};base64,${base64});
+	font-display: swap;
+}`;
+				await this.app.vault.adapter.write(css_font_path, base64_css);
+			}
 
-			console.log("Font CSS Saved into %s", css_font_path);
-			// Removed the recursive call to load_plugin() - this was causing infinite loop
+			console.log("saved font %s into %s", font_family_name, css_font_path);
 		} catch (error) {
 			console.error(`Error converting font ${font_file_name} to CSS:`, error);
 			throw error; // Re-throw to be handled by caller
