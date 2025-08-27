@@ -18,19 +18,19 @@ const DEFAULT_SETTINGS: FontPluginSettings = {
 
 function get_default_css(font_family_name: string, css_class = ":root *") {
 	return `${css_class} {
-		--font-default: ${font_family_name};
-		--default-font: ${font_family_name};
-		--font-family-editor: ${font_family_name};
-		--font-monospace-default: ${font_family_name};
-		--font-interface-override: ${font_family_name};
-		--font-text-override: ${font_family_name};
-		--font-monospace-override: ${font_family_name};	
+		--font-default: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		--default-font: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		--font-family-editor: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		--font-monospace-default: '${font_family_name}', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+		--font-interface-override: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		--font-text-override: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		--font-monospace-override: '${font_family_name}', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;	
 	}
 `;
 }
 function get_custom_css(font_family_name: string, css_class = ":root *") {
 	return `${css_class} * {
-		font-family: ${font_family_name} !important;
+		font-family: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 		}`;
 }
 
@@ -136,7 +136,7 @@ export default class FontPlugin extends Plugin {
 		if (this.settings.force_mode)
 			css_string += `
 					* {
-						font-family: ${font_family_name} !important;
+						font-family: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 					}
 						`;
 		applyCss(css_string, "custom_font_general");
@@ -393,21 +393,21 @@ class FontSettingTab extends PluginSettingTab {
 
 /* Apply to all text */
 :root * {
-	--font-default: ${font_family_name};
-	--default-font: ${font_family_name};
-	--font-family-editor: ${font_family_name};
-	--font-interface-override: ${font_family_name};
-	--font-text-override: ${font_family_name};
+	--font-default: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--default-font: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-family-editor: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-interface-override: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-text-override: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Example: Apply to custom CSS class */
 .custom-font * {
-	font-family: ${font_family_name} !important;
+	font-family: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 /* Example: Apply to specific elements only */
 .custom-font h1, .custom-font h2, .custom-font h3 {
-	font-family: ${font_family_name} !important;
+	font-family: '${font_family_name}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }`;
 								text.setValue(template);
 							}
