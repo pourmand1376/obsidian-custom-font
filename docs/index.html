@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Font to Base64 CSS Converter - Obsidian Custom Font Tool</title>
+    <meta name="description" content="Convert font files (.woff, .ttf, .woff2, .otf) to base64-encoded CSS for Obsidian. Free web-based tool with no installation required.">
+    <meta name="keywords" content="font converter, base64, CSS, Obsidian, font-face, web fonts, ttf, woff, woff2, otf">
+    <meta name="author" content="Obsidian Custom Font Plugin">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pourmand1376.github.io/obsidian-custom-font/">
+    <meta property="og:title" content="Font to Base64 CSS Converter">
+    <meta property="og:description" content="Convert font files to base64-encoded CSS for Obsidian. Free web-based tool with drag & drop interface.">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://pourmand1376.github.io/obsidian-custom-font/">
+    <meta property="twitter:title" content="Font to Base64 CSS Converter">
+    <meta property="twitter:description" content="Convert font files to base64-encoded CSS for Obsidian. Free web-based tool with drag & drop interface.">
+    
+    <!-- Preconnect for better performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Optional: Include Inter font for better typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container fade-in-up">
+        <header>
+            <h1>Font to Base64 CSS Converter</h1>
+            <p>Convert your font files (.woff, .ttf, .woff2, .otf) to base64-encoded CSS for use with Obsidian</p>
+        </header>
+
+        <main>
+            <section class="upload-section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="fontFile" accept=".woff,.ttf,.woff2,.otf" multiple>
+                    <label for="fontFile" class="file-input-label">
+                        <span>Choose font files or drag and drop here</span>
+                    </label>
+                </div>
+                <div class="file-info" id="fileInfo"></div>
+            </section>
+
+            <section class="options-section">
+                <h3>CSS Output Options</h3>
+                <div class="option-group">
+                    <label>
+                        <input type="radio" name="cssType" value="default" checked>
+                        Default CSS (Obsidian variables)
+                    </label>
+                    <label>
+                        <input type="radio" name="cssType" value="custom">
+                        Custom CSS class
+                    </label>
+                    <label>
+                        <input type="radio" name="cssType" value="force">
+                        Force style (all elements)
+                    </label>
+                </div>
+                
+                <div class="custom-class-input" id="customClassInput" style="display: none;">
+                    <label for="customClassName">Custom CSS class name:</label>
+                    <input type="text" id="customClassName" placeholder="e.g., .my-font-class">
+                </div>
+            </section>
+
+            <section class="convert-section">
+                <button id="convertBtn" class="convert-btn" disabled>Convert to CSS</button>
+            </section>
+
+            <section class="output-section" id="outputSection" style="display: none;">
+                <h3>Generated CSS</h3>
+                <div class="output-actions">
+                    <button id="copyBtn" class="copy-btn">Copy to Clipboard</button>
+                    <button id="downloadBtn" class="download-btn">Download CSS File</button>
+                </div>
+                <textarea id="cssOutput" readonly placeholder="Your generated CSS will appear here..."></textarea>
+            </section>
+
+            <section class="instructions">
+                <h3>How to use:</h3>
+                <ol>
+                    <li>Select one or more font files (.woff, .ttf, .woff2, .otf)</li>
+                    <li>Choose your preferred CSS output format</li>
+                    <li>Click "Convert to CSS" to generate the base64-encoded CSS</li>
+                    <li>Copy the generated CSS or download it as a file</li>
+                    <li>Use the CSS in your Obsidian vault as a CSS snippet</li>
+                </ol>
+                
+                <h4>For Obsidian:</h4>
+                <p>Save the generated CSS as a <code>.css</code> file in your vault's <code>.obsidian/snippets/</code> folder, then enable it in Obsidian's Appearance settings.</p>
+            </section>
+        </main>
+
+        <footer>
+            <p>Part of the <a href="https://github.com/pourmand1376/obsidian-custom-font" target="_blank">Obsidian Custom Font Plugin</a> project</p>
+        </footer>
+    </div>
+
+    <script src="font-converter.js"></script>
+</body>
+</html>
