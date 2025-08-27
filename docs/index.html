@@ -20,17 +20,24 @@
     <meta property="twitter:title" content="Font to Base64 CSS Converter">
     <meta property="twitter:description" content="Convert font files to base64-encoded CSS for Obsidian. Free web-based tool with drag & drop interface.">
     
+    <!-- Preconnect for better performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Optional: Include Inter font for better typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
+    <div class="container fade-in-up">
         <header>
             <h1>Font to Base64 CSS Converter</h1>
             <p>Convert your font files (.woff, .ttf, .woff2, .otf) to base64-encoded CSS for use with Obsidian</p>
         </header>
 
         <main>
-            <div class="upload-section">
+            <section class="upload-section">
                 <div class="file-input-wrapper">
                     <input type="file" id="fontFile" accept=".woff,.ttf,.woff2,.otf" multiple>
                     <label for="fontFile" class="file-input-label">
@@ -38,9 +45,9 @@
                     </label>
                 </div>
                 <div class="file-info" id="fileInfo"></div>
-            </div>
+            </section>
 
-            <div class="options-section">
+            <section class="options-section">
                 <h3>CSS Output Options</h3>
                 <div class="option-group">
                     <label>
@@ -61,22 +68,22 @@
                     <label for="customClassName">Custom CSS class name:</label>
                     <input type="text" id="customClassName" placeholder="e.g., .my-font-class">
                 </div>
-            </div>
+            </section>
 
-            <div class="convert-section">
+            <section class="convert-section">
                 <button id="convertBtn" class="convert-btn" disabled>Convert to CSS</button>
-            </div>
+            </section>
 
-            <div class="output-section" id="outputSection" style="display: none;">
+            <section class="output-section" id="outputSection" style="display: none;">
                 <h3>Generated CSS</h3>
                 <div class="output-actions">
                     <button id="copyBtn" class="copy-btn">Copy to Clipboard</button>
                     <button id="downloadBtn" class="download-btn">Download CSS File</button>
                 </div>
-                <textarea id="cssOutput" readonly></textarea>
-            </div>
+                <textarea id="cssOutput" readonly placeholder="Your generated CSS will appear here..."></textarea>
+            </section>
 
-            <div class="instructions">
+            <section class="instructions">
                 <h3>How to use:</h3>
                 <ol>
                     <li>Select one or more font files (.woff, .ttf, .woff2, .otf)</li>
@@ -88,7 +95,7 @@
                 
                 <h4>For Obsidian:</h4>
                 <p>Save the generated CSS as a <code>.css</code> file in your vault's <code>.obsidian/snippets/</code> folder, then enable it in Obsidian's Appearance settings.</p>
-            </div>
+            </section>
         </main>
 
         <footer>
