@@ -760,9 +760,9 @@ footer a:hover {
         --hero-content3: #52525b;
         --hero-content4: #71717a;
         --hero-foreground: #fafafa;
-        --hero-foreground-600: #d1d5db;
-        --hero-foreground-500: #9ca3af;
-        --hero-foreground-400: #6b7280;
+        --hero-foreground-600: #e5e7eb;
+        --hero-foreground-500: #d1d5db;
+        --hero-foreground-400: #9ca3af;
     }
     
     body {
