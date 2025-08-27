@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-custom-font",
-	"version": "1.7.0",
+	"version": "1.8.0",
 	"description": "This plugin adds any custom font to obsidian (including obisidian mobile)",
 	"main": "main.js",
 	"scripts": {
