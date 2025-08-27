@@ -39,6 +39,18 @@ So no matter what device you use Obsidian on, you can customize your notes with 
 - Custom CSS Style Support: You can apply the font to anywhere you want!
 - Ability to set custom font on specific pages (See [#7](https://github.com/pourmand1376/obsidian-custom-font/issues/7))
 
+## Web-based Font Converter
+
+**[🌐 Font to Base64 CSS Converter](https://pourmand1376.github.io/obsidian-custom-font/)**
+
+Use our web-based tool to convert font files to base64-encoded CSS without installing the plugin! Perfect for users who want just the conversion functionality or experience performance issues with the full plugin.
+
+Features:
+- Convert .woff, .ttf, .woff2, and .otf font files
+- Multiple CSS output options (Obsidian variables, custom classes, force styles)
+- Copy to clipboard or download CSS files
+- No installation required - works in any modern browser
+
 ## Issues and Pull-Requests
 
 This idea of this plugin just recently came into my mind. I don't know what features would be useful to you. Issues and pull requests are highly appreciated.
