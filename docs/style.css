@@ -52,9 +52,9 @@
     
     /* Text Colors */
     --hero-foreground: #11181c;
-    --hero-foreground-600: #52525b;
-    --hero-foreground-500: #71717a;
-    --hero-foreground-400: #a1a1aa;
+    --hero-foreground-600: #374151;
+    --hero-foreground-500: #4b5563;
+    --hero-foreground-400: #6b7280;
     
     /* Spacing Scale */
     --hero-unit-1: 0.25rem;
@@ -760,9 +760,9 @@ footer a:hover {
         --hero-content3: #52525b;
         --hero-content4: #71717a;
         --hero-foreground: #fafafa;
-        --hero-foreground-600: #a1a1aa;
-        --hero-foreground-500: #71717a;
-        --hero-foreground-400: #52525b;
+        --hero-foreground-600: #e5e7eb;
+        --hero-foreground-500: #d1d5db;
+        --hero-foreground-400: #9ca3af;
     }
     
     body {
