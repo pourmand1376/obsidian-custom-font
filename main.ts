@@ -24,7 +24,7 @@ function get_default_css(font_family_name: string, css_class = ":root *") {
 		--font-monospace-default: '${font_family_name}';
 		--font-interface-override: '${font_family_name}';
 		--font-text-override: '${font_family_name}';
-		--font-monospace-override: '${font_family_name}';	
+		--font-monospace-override: '${font_family_name}';
 	}
 `;
 }
@@ -43,31 +43,35 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 	return btoa(binary);
 }
 
+// Dynamically generated CSS (font-face declarations and font-family overrides)
+// is applied through constructable stylesheets (document.adoptedStyleSheets)
+// rather than injected <style> elements, which Obsidian does not allow.
+const managedStyleSheets: Record<string, { sheet: CSSStyleSheet; css: string }> =
+	{};
+
 function applyCss(css: string, css_id: string, appendMode = false) {
-	// Check if style tag with the given ID already exists
-	const existingStyle = document.getElementById(css_id);
+	let entry = managedStyleSheets[css_id];
 
-	if (existingStyle && appendMode) {
-		// Append CSS content to existing style tag
-		existingStyle.innerHTML += css;
-	} else {
-		// Create style tag
-		const style = document.createElement("style");
-
-		// Add CSS content
-		style.innerHTML = css;
-
-		// Append style tag to head
-		document.head.appendChild(style);
-
-		// Optional: Remove existing custom CSS
-		if (existingStyle) {
-			existingStyle.remove();
-		}
-
-		// Give ID to new style tag
-		style.id = css_id;
+	if (!entry) {
+		const sheet = new CSSStyleSheet();
+		entry = { sheet, css: "" };
+		managedStyleSheets[css_id] = entry;
+		document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
 	}
+
+	entry.css = appendMode ? entry.css + css : css;
+	entry.sheet.replaceSync(entry.css);
+}
+
+function removeCss(css_id: string) {
+	const entry = managedStyleSheets[css_id];
+	if (!entry) {
+		return;
+	}
+	document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
+		(sheet) => sheet !== entry.sheet
+	);
+	delete managedStyleSheets[css_id];
 }
 
 export default class FontPlugin extends Plugin {
@@ -102,7 +106,8 @@ export default class FontPlugin extends Plugin {
 			}
 		} catch (error) {
 			console.error("Error loading fonts:", error);
-			new Notice(`Error loading fonts: ${error.message || error}`);
+			const message = error instanceof Error ? error.message : String(error);
+			new Notice(`Error loading fonts: ${message}`);
 		}
 	}
 
@@ -111,7 +116,6 @@ export default class FontPlugin extends Plugin {
 		load_all_fonts: boolean
 	) {
 		try {
-			console.log("loading %s", font_file_name);
 			const css_font_path = `${this.plugin_folder_path}/${font_file_name
 				.toLowerCase()
 				.replace(".", "_")}.css`;
@@ -159,14 +163,14 @@ export default class FontPlugin extends Plugin {
 		try {
 			// Show notice only once to prevent spam
 			if (!this.processingNoticeShown) {
-				new Notice("Processing Font files");
+				new Notice("Processing font files");
 				this.processingNoticeShown = true;
 				// Reset the flag after a delay to allow for future operations
-				setTimeout(() => {
+				window.setTimeout(() => {
 					this.processingNoticeShown = false;
 				}, 5000);
 			}
-			
+
 			const file = `${this.settings.font_folder}/${font_file_name}`;
 			const arrayBuffer = await this.app.vault.adapter.readBinary(file);
 
@@ -180,48 +184,50 @@ export default class FontPlugin extends Plugin {
 			// Use CSS Font Loading API for better performance
 			const fontBlob = new Blob([arrayBuffer]);
 			const fontUrl = URL.createObjectURL(fontBlob);
-			
+
 			const fontFace = new FontFace(font_family_name, `url(${fontUrl})`, {
-				display: 'swap' // Better loading performance
+				display: "swap", // Better loading performance
 			});
 
 			try {
 				await fontFace.load();
-				// Check if document.fonts.add is available (modern browsers)
-				const fonts = document.fonts as any; // eslint-disable-line @typescript-eslint/no-explicit-any
-				if (fonts && typeof fonts.add === 'function') {
-					fonts.add(fontFace); // eslint-disable-line @typescript-eslint/no-explicit-any
-					console.log(`Font ${font_family_name} loaded successfully using CSS Font Loading API`);
+				// Check if the CSS Font Loading API is available (modern browsers).
+				// `FontFaceSet.add` is not present in the bundled DOM typings, so
+				// narrow to a minimal typed shape instead of casting to `any`.
+				const fontFaceSet = document.fonts as unknown as {
+					add?: (font: FontFace) => void;
+				};
+				if (typeof fontFaceSet.add === "function") {
+					fontFaceSet.add(fontFace);
 				} else {
-					console.log(`CSS Font Loading API not fully supported, falling back to traditional method for ${font_family_name}`);
-					throw new Error('CSS Font Loading API not supported');
+					throw new Error("CSS Font Loading API not supported");
 				}
-				
+
 				// Still create CSS file for backward compatibility
 				const base64 = arrayBufferToBase64(arrayBuffer);
 				const css_type = font_extension_name === "woff" ? "font/woff" :
 								font_extension_name === "woff2" ? "font/woff2" :
 								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
-				
+
 				const base64_css = `@font-face{
 	font-family: '${font_family_name}';
 	src: url(data:${css_type};base64,${base64});
 	font-display: swap;
 }`;
 				await this.app.vault.adapter.write(css_font_path, base64_css);
-				
+
 				// Clean up object URL to prevent memory leaks
 				URL.revokeObjectURL(fontUrl);
 			} catch (fontLoadError) {
 				console.warn(`CSS Font Loading API failed for ${font_family_name}, falling back to traditional method:`, fontLoadError);
 				URL.revokeObjectURL(fontUrl);
-				
+
 				// Fallback to traditional base64 approach
 				const base64 = arrayBufferToBase64(arrayBuffer);
 				const css_type = font_extension_name === "woff" ? "font/woff" :
 								font_extension_name === "woff2" ? "font/woff2" :
 								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
-				
+
 				const base64_css = `@font-face{
 	font-family: '${font_family_name}';
 	src: url(data:${css_type};base64,${base64});
@@ -229,8 +235,6 @@ export default class FontPlugin extends Plugin {
 }`;
 				await this.app.vault.adapter.write(css_font_path, base64_css);
 			}
-
-			console.log("saved font %s into %s", font_family_name, css_font_path);
 		} catch (error) {
 			console.error(`Error converting font ${font_file_name} to CSS:`, error);
 			throw error; // Re-throw to be handled by caller
@@ -238,23 +242,20 @@ export default class FontPlugin extends Plugin {
 	}
 
 	async onload() {
-		this.load_plugin();
+		await this.load_plugin();
 		// This adds a settings tab so the user can configure various aspects of the plugin
 
 		this.addSettingTab(new FontSettingTab(this.app, this));
 	}
 
-	async onunload() {
-		applyCss("", "custom_font_base64");
-		applyCss("", "custom_font_general");
+	onunload() {
+		removeCss("custom_font_base64");
+		removeCss("custom_font_general");
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData()
-		);
+		const data = (await this.loadData()) as Partial<FontPluginSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 	}
 
 	async saveSettings() {
@@ -270,18 +271,22 @@ class FontSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	async display() {
+	display(): void {
+		void this.renderSettings();
+	}
+
+	private async renderSettings() {
 		const { containerEl } = this;
 
 		containerEl.empty();
 
 		const infoContainer = containerEl.createDiv();
 		infoContainer.setText(
-			"In Order to set the font, copy your font into fonts directory that you set"
+			"In order to set the font, copy your font into fonts directory that you set"
 		);
 
 		new Setting(containerEl)
-			.setName("Fonts Folder")
+			.setName("Fonts folder")
 			.setDesc("Folder to look for your custom fonts")
 			.addText((text) => {
 				text.onChange(async (value) => {
@@ -319,7 +324,7 @@ class FontSettingTab extends PluginSettingTab {
 			}
 			options.push({ name: "all", value: "Multiple fonts" });
 		} catch (error) {
-			console.log(error);
+			console.error(error);
 		}
 
 		new Setting(containerEl)
@@ -329,9 +334,9 @@ class FontSettingTab extends PluginSettingTab {
 			)
 			.addButton((button) => {
 				button.setButtonText("Reload");
-				button.onClick((callback) => {
-					this.plugin.saveSettings();
-					this.plugin.load_plugin();
+				button.onClick(async () => {
+					await this.plugin.saveSettings();
+					await this.plugin.load_plugin();
 					this.display();
 				});
 			});
@@ -340,8 +345,8 @@ class FontSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Font")
 			.setDesc(
-				`Choose font (If you can't see your fonts, make sure your fonts are in the folder you specified and hit reload. 
-				Also if you choose multiple fonts option, we will load and process all fonts in the folder for you. In that Case, enable Custom CSS Mode)`
+				`Choose font (if you can't see your fonts, make sure your fonts are in the folder you specified and hit reload.
+				Also if you choose multiple fonts option, we will load and process all fonts in the folder for you. In that case, enable custom CSS mode)`
 			)
 			.addDropdown((dropdown) => {
 				// Add options
@@ -361,7 +366,7 @@ class FontSettingTab extends PluginSettingTab {
 		if (this.plugin.settings.font.toLowerCase() != "none") {
 
 			new Setting(containerEl)
-				.setName("Force Style")
+				.setName("Force style")
 				.setDesc(
 					"This option should only be used if you have installed a community theme and normal mode doesn't work"
 				)
@@ -374,9 +379,9 @@ class FontSettingTab extends PluginSettingTab {
 					});
 				});
 			new Setting(containerEl)
-				.setName("Custom CSS Mode")
+				.setName("Custom CSS mode")
 				.setDesc(
-					"If you want to apply a custom css style rather than default style, choose this."
+					"If you want to apply a custom CSS style rather than default style, choose this."
 				)
 				.addToggle((toggle) => {
 					toggle.setValue(this.plugin.settings.custom_css_mode);
@@ -385,14 +390,14 @@ class FontSettingTab extends PluginSettingTab {
 							this.plugin.settings.custom_css = "";
 						}
 						this.plugin.settings.custom_css_mode = value;
-						this.plugin.saveSettings();
-						this.plugin.load_plugin();
+						await this.plugin.saveSettings();
+						await this.plugin.load_plugin();
 						this.display();
 					});
 				});
 			if (this.plugin.settings.custom_css_mode) {
 				new Setting(containerEl)
-					.setName("Custom CSS Style")
+					.setName("Custom CSS style")
 					.setDesc("Input your custom css style. Use the font filename without extension (in lowercase) as the font-family name. For example, if your font file is 'MyFont.ttf', use 'myfont' in your CSS.")
 					.addTextArea(async (text) => {
 						text.onChange(async (new_value) => {
@@ -400,7 +405,6 @@ class FontSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 							await this.plugin.load_plugin();
 						});
-						text.setDisabled(!this.plugin.settings.custom_css_mode);
 
 						if (this.plugin.settings.custom_css == "") {
 							let font_family_name = "";
@@ -408,7 +412,7 @@ class FontSettingTab extends PluginSettingTab {
 								font_family_name =
 									this.plugin.settings.font.split(".")[0].toLowerCase();
 							} catch (error) {
-								console.log(error);
+								console.error(error);
 							}
 
 							if (font_family_name == "all") {
@@ -464,8 +468,7 @@ class FontSettingTab extends PluginSettingTab {
 						}
 						text.onChanged();
 
-						text.inputEl.style.width = "100%";
-						text.inputEl.style.height = "100px";
+						text.inputEl.classList.add("custom-font-css-textarea");
 
 					});
 			}
