@@ -34,6 +34,72 @@ function get_custom_css(font_family_name: string, css_class = ":root *") {
 		}`;
 }
 
+// Maps common font filename weight/style tokens to CSS values.
+// Tokens are matched case-insensitively against '-' or '_' separated parts of
+// the filename stem (e.g. "Roboto-BoldItalic", "ia-writer-mono-regular").
+const WEIGHT_MAP: Record<string, string> = {
+	thin: "100",
+	hairline: "100",
+	extralight: "200",
+	ultralight: "200",
+	light: "300",
+	regular: "400",
+	normal: "400",
+	medium: "500",
+	semibold: "600",
+	demibold: "600",
+	bold: "700",
+	extrabold: "800",
+	ultrabold: "800",
+	black: "900",
+	heavy: "900",
+};
+
+interface FontDescriptors {
+	baseName: string;
+	weight: string;
+	style: string;
+}
+
+/**
+ * Given a font filename stem (without extension), returns the CSS font-family
+ * base name (with weight/style tokens stripped) together with the inferred
+ * font-weight and font-style values.
+ *
+ * Examples:
+ *   "Roboto-Bold"        → { baseName: "roboto", weight: "700",    style: "normal" }
+ *   "Roboto-BoldItalic"  → { baseName: "roboto", weight: "700",    style: "italic" }
+ *   "ia-writer-mono-regular" → { baseName: "ia-writer-mono", weight: "400", style: "normal" }
+ *   "OpenSans"           → { baseName: "opensans", weight: "400",   style: "normal" }
+ */
+function parseFontFileStem(stem: string): FontDescriptors {
+	// Normalise to lowercase and split on hyphens/underscores/spaces.
+	const lower = stem.toLowerCase();
+	const parts = lower.split(/[-_ ]+/);
+
+	let weight = "400";
+	let style = "normal";
+	const keptParts: string[] = [];
+
+	for (const part of parts) {
+		if (part === "italic" || part === "oblique") {
+			style = part;
+		} else if (WEIGHT_MAP[part]) {
+			weight = WEIGHT_MAP[part];
+		} else if (part === "bolditalic") {
+			// Handle concatenated tokens like "BoldItalic"
+			weight = "700";
+			style = "italic";
+		} else {
+			keptParts.push(part);
+		}
+	}
+
+	const baseName = keptParts.join("-") || lower;
+
+	return { baseName, weight, style };
+}
+
 function arrayBufferToBase64(buffer: ArrayBuffer) {
 	let binary = "";
 	const bytes = new Uint8Array(buffer);
@@ -140,17 +206,18 @@ export default class FontPlugin extends Plugin {
 	}
 	private async load_css(font_file_name: string) {
 		let css_string = "";
-		const font_family_name: string = font_file_name.split(".")[0].toLowerCase();
+		const stem = font_file_name.split(".")[0];
+		const { baseName } = parseFontFileStem(stem);
 
 		if (this.settings.custom_css_mode) {
 			css_string = this.settings.custom_css;
 		} else {
-			css_string = get_default_css(font_family_name);
+			css_string = get_default_css(baseName);
 		}
 		if (this.settings.force_mode)
 			css_string += `
 					* {
-						font-family: '${font_family_name}' !important;
+						font-family: '${baseName}' !important;
 					}
 						`;
 		applyCss(css_string, "custom_font_general");
@@ -174,19 +241,20 @@ export default class FontPlugin extends Plugin {
 			const file = `${this.settings.font_folder}/${font_file_name}`;
 			const arrayBuffer = await this.app.vault.adapter.readBinary(file);
 
-			const font_family_name: string = font_file_name
-				.split(".")[0]
-				.toLowerCase();
+			const stem = font_file_name.split(".")[0];
 			const font_extension_name: string = font_file_name
 				.split(".")[1]
 				.toLowerCase();
+			const { baseName, weight, style } = parseFontFileStem(stem);
 
 			// Use CSS Font Loading API for better performance
 			const fontBlob = new Blob([arrayBuffer]);
 			const fontUrl = URL.createObjectURL(fontBlob);
 
-			const fontFace = new FontFace(font_family_name, `url(${fontUrl})`, {
+			const fontFace = new FontFace(baseName, `url(${fontUrl})`, {
 				display: "swap", // Better loading performance
+				weight,
+				style,
 			});
 
 			try {
@@ -210,8 +278,10 @@ export default class FontPlugin extends Plugin {
 								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
 
 				const base64_css = `@font-face{
-	font-family: '${font_family_name}';
+	font-family: '${baseName}';
 	src: url(data:${css_type};base64,${base64});
+	font-weight: ${weight};
+	font-style: ${style};
 	font-display: swap;
 }`;
 				await this.app.vault.adapter.write(css_font_path, base64_css);
@@ -219,7 +289,7 @@ export default class FontPlugin extends Plugin {
 				// Clean up object URL to prevent memory leaks
 				URL.revokeObjectURL(fontUrl);
 			} catch (fontLoadError) {
-				console.warn(`CSS Font Loading API failed for ${font_family_name}, falling back to traditional method:`, fontLoadError);
+				console.warn(`CSS Font Loading API failed for ${baseName}, falling back to traditional method:`, fontLoadError);
 				URL.revokeObjectURL(fontUrl);
 
 				// Fallback to traditional base64 approach
@@ -229,8 +299,10 @@ export default class FontPlugin extends Plugin {
 								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
 
 				const base64_css = `@font-face{
-	font-family: '${font_family_name}';
+	font-family: '${baseName}';
 	src: url(data:${css_type};base64,${base64});
+	font-weight: ${weight};
+	font-style: ${style};
 	font-display: swap;
 }`;
 				await this.app.vault.adapter.write(css_font_path, base64_css);
