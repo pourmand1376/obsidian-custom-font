@@ -55,6 +55,13 @@ const WEIGHT_MAP: Record<string, string> = {
 	heavy: "900",
 };
 
+// Weight tokens ordered longest-first so that "extrabold" is matched before
+// "bold", "semibold" before "bold", etc. when scanning inside a concatenated
+// token like "SemiBoldItalic".
+const WEIGHT_TOKENS_BY_LENGTH = Object.keys(WEIGHT_MAP).sort(
+	(a, b) => b.length - a.length
+);
+
 interface FontDescriptors {
 	baseName: string;
 	weight: string;
@@ -66,11 +73,15 @@ interface FontDescriptors {
  * base name (with weight/style tokens stripped) together with the inferred
  * font-weight and font-style values.
  *
+ * Handles both hyphen/underscore-separated tokens ("Roboto-Bold-Italic") and
+ * concatenated CamelCase variants ("RobotoBoldItalic", "SemiBoldItalic").
+ *
  * Examples:
- *   "Roboto-Bold"        → { baseName: "roboto", weight: "700",    style: "normal" }
- *   "Roboto-BoldItalic"  → { baseName: "roboto", weight: "700",    style: "italic" }
- *   "ia-writer-mono-regular" → { baseName: "ia-writer-mono", weight: "400", style: "normal" }
- *   "OpenSans"           → { baseName: "opensans", weight: "400",   style: "normal" }
+ *   "Roboto-Bold"             → { baseName: "roboto", weight: "700", style: "normal" }
+ *   "Roboto-BoldItalic"       → { baseName: "roboto", weight: "700", style: "italic" }
+ *   "Roboto-SemiBoldItalic"   → { baseName: "roboto", weight: "600", style: "italic" }
+ *   "ia-writer-mono-regular"  → { baseName: "ia-writer-mono", weight: "400", style: "normal" }
+ *   "OpenSans"                → { baseName: "opensans", weight: "400", style: "normal" }
  */
 function parseFontFileStem(stem: string): FontDescriptors {
 	// Normalise to lowercase and split on hyphens/underscores/spaces.
@@ -82,20 +93,58 @@ function parseFontFileStem(stem: string): FontDescriptors {
 	const keptParts: string[] = [];
 
 	for (const part of parts) {
-		if (part === "italic" || part === "oblique") {
-			style = part;
-		} else if (WEIGHT_MAP[part]) {
-			weight = WEIGHT_MAP[part];
-		} else if (part === "bolditalic") {
-			// Handle concatenated tokens like "BoldItalic"
-			weight = "700";
-			style = "italic";
-		} else {
+		// Attempt to decompose concatenated tokens like "bolditalic",
+		// "semibolditalic", "extralightoblique", etc. by greedily matching
+		// weight/style sub-tokens from the start of the string.
+		let remainder = part;
+		let matched = false;
+
+		while (remainder.length > 0) {
+			if (remainder === "italic" || remainder === "oblique") {
+				style = remainder;
+				remainder = "";
+				matched = true;
+				break;
+			}
+
+			let tokenMatched = false;
+			for (const token of WEIGHT_TOKENS_BY_LENGTH) {
+				if (remainder.startsWith(token)) {
+					weight = WEIGHT_MAP[token];
+					remainder = remainder.slice(token.length);
+					tokenMatched = true;
+					matched = true;
+					break;
+				}
+			}
+
+			if (!tokenMatched) {
+				// Check for "italic"/"oblique" suffix after weight
+				if (remainder === "italic" || remainder === "oblique") {
+					style = remainder;
+					remainder = "";
+					matched = true;
+				}
+				break;
+			}
+
+			// After stripping a weight, check remaining for italic/oblique
+			if (remainder === "italic" || remainder === "oblique") {
+				style = remainder;
+				remainder = "";
+			}
+		}
+
+		// If the entire part was consumed as weight/style tokens, skip it.
+		// If nothing was recognised, treat it as part of the family name.
+		if (!matched) {
 			keptParts.push(part);
 		}
 	}
 
-	const baseName = keptParts.join("-") || lower;
+	// If stripping removed all parts (e.g. a file named "Bold.ttf"), use the
+	// original lowercased stem so the user still gets a usable family name.
+	const baseName = keptParts.length > 0 ? keptParts.join("-") : lower;
 
 	return { baseName, weight, style };
 }
