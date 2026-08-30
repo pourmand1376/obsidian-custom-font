@@ -4,6 +4,8 @@
 
 Spice up your Obsidian notes with custom fonts! Obsidian doesn't make it easy to set custom fonts — especially on Android and iOS. With this plugin you set your fonts up **once** and they work everywhere: Windows, macOS, Linux, Android, and iPhone. No need to install the font on your operating system.
 
+![Custom Font Loader](plugin_image.webp)
+
 ## Features at a glance
 
 - 🌍 **Works on every platform** — Windows, macOS, Linux, Android, and iOS. Fonts are embedded, so nothing needs installing on the device.
