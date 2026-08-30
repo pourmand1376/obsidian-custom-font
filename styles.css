@@ -24,6 +24,16 @@
 	margin: 2px 0;
 }
 
+.custom-font-doc {
+	margin-top: 14px;
+	padding-top: 10px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.custom-font-doc p {
+	margin: 6px 0;
+}
+
 .custom-font-info pre {
 	background-color: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
@@ -63,6 +73,43 @@
 	min-width: 120px;
 	color: var(--text-normal);
 	font-weight: var(--font-semibold);
+}
+
+.setting-item-name .custom-font-weight-badge {
+	margin-left: 8px;
+	vertical-align: middle;
+}
+
+.custom-font-weight-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 0 7px;
+	border-radius: 10px;
+	font-size: var(--font-ui-smaller);
+	line-height: 1.7;
+	background-color: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+/* Light weights read faint, heavy weights read strong — so weight is legible at a glance. */
+.custom-font-weight-badge[data-weight="100"],
+.custom-font-weight-badge[data-weight="200"],
+.custom-font-weight-badge[data-weight="300"] {
+	color: var(--text-faint);
+}
+
+.custom-font-weight-badge[data-weight="500"],
+.custom-font-weight-badge[data-weight="600"] {
+	background-color: var(--color-blue);
+	color: var(--text-on-accent);
+}
+
+.custom-font-weight-badge[data-weight="700"],
+.custom-font-weight-badge[data-weight="800"],
+.custom-font-weight-badge[data-weight="900"] {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: var(--font-bold);
 }
 
 .custom-font-chip {

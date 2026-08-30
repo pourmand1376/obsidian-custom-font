@@ -58,13 +58,6 @@ function basename(path: string): string {
 	return parts[parts.length - 1];
 }
 
-// A font's CSS family name is derived from its file's basename (without
-// extension, lowercased), so a font is referenced the same way regardless of
-// which folder it lives in.
-function font_family_from_path(path: string): string {
-	return basename(path).split(".")[0].toLowerCase();
-}
-
 // Weight keywords that may appear in a font filename, mapped to a display label.
 const FONT_WEIGHTS: Record<string, string> = {
 	thin: "Thin",
@@ -85,10 +78,31 @@ const FONT_WEIGHTS: Record<string, string> = {
 	heavy: "Black",
 };
 
-// Derive a human label like "Roboto Bold Italic" from a font filename, so two
-// files of the same family read as related. Weight/italic tokens are pulled out
-// of the filename and the remaining tokens form the family name.
-function font_label(path: string): string {
+// CSS numeric weight for each display label.
+const WEIGHT_NUMBERS: Record<string, number> = {
+	Thin: 100,
+	ExtraLight: 200,
+	Light: 300,
+	Regular: 400,
+	Medium: 500,
+	SemiBold: 600,
+	Bold: 700,
+	ExtraBold: 800,
+	Black: 900,
+};
+
+interface ParsedFont {
+	family: string; // human family name, e.g. "Open Sans"
+	slug: string; // CSS font-family / class name, e.g. "open-sans"
+	weight: string; // display weight, e.g. "Bold" ("" if none in filename)
+	weightNumber: number; // CSS numeric weight (defaults to 400)
+	italic: boolean;
+}
+
+// Parse a font filename into family + weight + style. Files that share a family
+// (e.g. Roboto-Regular and Roboto-Bold) resolve to the same slug, so they are
+// registered under one CSS font-family and the browser picks the right weight.
+function parse_font(path: string): ParsedFont {
 	const stem = basename(path).replace(/\.[^./]+$/, "");
 	const family_tokens: string[] = [];
 	let weight = "";
@@ -110,7 +124,28 @@ function font_label(path: string): string {
 		}
 		family_tokens.push(raw);
 	}
-	let label = family_tokens.join(" ") || stem;
+	const family = family_tokens.join(" ") || stem;
+	const slug =
+		family.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") ||
+		"font";
+	return {
+		family,
+		slug,
+		weight,
+		weightNumber: weight ? WEIGHT_NUMBERS[weight] : 400,
+		italic,
+	};
+}
+
+// The CSS font-family name (a family slug shared by all weights of a family).
+function font_family_from_path(path: string): string {
+	return parse_font(path).slug;
+}
+
+// A human label like "Roboto Bold Italic" for one font file.
+function font_label(path: string): string {
+	const { family, weight, italic } = parse_font(path);
+	let label = family;
 	if (weight) label += ` ${weight}`;
 	if (italic) label += " Italic";
 	return label;
@@ -173,9 +208,10 @@ export default class FontPlugin extends Plugin {
 	// order, then the emoji fonts last (when enabled). The browser does per-glyph
 	// fallback down this list, so earlier fonts take precedence character by character.
 	private font_stack(font_paths: string[]): string {
-		const families = font_paths.map(
-			(path) => `'${font_family_from_path(path)}'`
-		);
+		// Dedupe by family slug: different weights of one family share a slug and
+		// should appear once (the browser resolves the weight per character).
+		const slugs = [...new Set(font_paths.map(font_family_from_path))];
+		const families = slugs.map((slug) => `'${slug}'`);
 		if (this.settings.emoji_support) families.push(EMOJI_FONTS);
 		return families.join(", ");
 	}
@@ -214,8 +250,6 @@ export default class FontPlugin extends Plugin {
 		return paths;
 	}
 
-	// Every font found is loaded (its @font-face declared), so all of them are
-	// usable by name — through the role overrides, the per-font utility classes,
 	// The fonts whose @font-face is loaded: the fonts chosen for the three roles
 	// plus the extra fonts the user added for their utility class only. Only
 	// these are loaded, so startup stays light instead of loading every file.
@@ -232,18 +266,22 @@ export default class FontPlugin extends Plugin {
 		return [...set];
 	}
 
-	// A compact utility class per loaded font so users can apply a font to
-	// specific notes/elements — e.g. add `cssclasses: [font-myfont]` to a note's
-	// frontmatter, or wrap content in `<div class="font-myfont">`. The `*`
-	// descendant selector plus `!important` force the font on everything inside,
-	// so the class reliably wins wherever it is applied.
+	// One utility class per font family (weights share a slug, so they collapse to
+	// one class) — e.g. add `cssclasses: [font-roboto]` to a note's frontmatter,
+	// or wrap content in `<div class="font-roboto">`. The `*` descendant selector
+	// plus `!important` force the family on everything inside; the browser still
+	// resolves the right weight per character.
 	private utility_classes_css(paths: string[]): string {
 		const lines: string[] = [];
+		const seen = new Set<string>();
 		for (const file of paths) {
-			const family = font_family_from_path(file);
-			const stack = this.font_stack([file]);
+			const slug = font_family_from_path(file);
+			if (seen.has(slug)) continue;
+			seen.add(slug);
 			lines.push(
-				`.font-${family}, .font-${family} * { font-family: ${stack} !important; }`
+				`.font-${slug}, .font-${slug} * { font-family: '${slug}'${
+					this.settings.emoji_support ? `, ${EMOJI_FONTS}` : ""
+				} !important; }`
 			);
 		}
 		return lines.join("\n");
@@ -316,9 +354,11 @@ export default class FontPlugin extends Plugin {
 
 	private async process_and_load_font(font_path: string) {
 		try {
+			// `_v2` busts caches written before @font-face gained weight/style
+			// descriptors, so upgraded vaults regenerate them.
 			const css_font_path = `${this.plugin_folder_path}/${basename(font_path)
 				.toLowerCase()
-				.replace(".", "_")}.css`;
+				.replace(".", "_")}_v2.css`;
 
 			if (!(await this.app.vault.adapter.exists(css_font_path))) {
 				await this.convert_font_to_css(font_path, css_font_path);
@@ -349,7 +389,10 @@ export default class FontPlugin extends Plugin {
 
 			const arrayBuffer = await this.app.vault.adapter.readBinary(font_path);
 
-			const font_family_name: string = font_family_from_path(font_path);
+			const parsed = parse_font(font_path);
+			const font_family_name = parsed.slug;
+			const font_weight = String(parsed.weightNumber);
+			const font_style = parsed.italic ? "italic" : "normal";
 			const font_extension_name: string =
 				basename(font_path).split(".").pop()?.toLowerCase() ?? "";
 
@@ -357,8 +400,12 @@ export default class FontPlugin extends Plugin {
 			const fontBlob = new Blob([arrayBuffer]);
 			const fontUrl = URL.createObjectURL(fontBlob);
 
+			// Register under the family slug with weight/style descriptors, so all
+			// weights of a family share one font-family and resolve automatically.
 			const fontFace = new FontFace(font_family_name, `url(${fontUrl})`, {
 				display: "swap", // Better loading performance
+				weight: font_weight,
+				style: font_style,
 			});
 
 			try {
@@ -383,6 +430,8 @@ export default class FontPlugin extends Plugin {
 
 				const base64_css = `@font-face{
 	font-family: '${font_family_name}';
+	font-weight: ${font_weight};
+	font-style: ${font_style};
 	src: url(data:${css_type};base64,${base64});
 	font-display: swap;
 }`;
@@ -402,6 +451,8 @@ export default class FontPlugin extends Plugin {
 
 				const base64_css = `@font-face{
 	font-family: '${font_family_name}';
+	font-weight: ${font_weight};
+	font-style: ${font_style};
 	src: url(data:${css_type};base64,${base64});
 	font-display: swap;
 }`;
@@ -511,18 +562,22 @@ class FontSettingTab extends PluginSettingTab {
 		return options;
 	}
 
-	private label_for(
-		options: { key: string; label: string }[],
-		path: string
-	): string {
-		return options.find((o) => o.key === path)?.label ?? basename(path);
-	}
-
 	private async commit(roles: string[], set: (value: string[]) => void) {
 		set(roles);
 		await this.plugin.saveSettings();
 		await this.plugin.load_plugin();
 		this.display();
+	}
+
+	// Append a colored weight badge (Regular / Bold / …) to a setting's name, so
+	// the weight is visible right where the font is selected.
+	private appendWeightBadge(nameEl: HTMLElement, path: string) {
+		const p = parse_font(path);
+		const badge = nameEl.createSpan({
+			cls: "custom-font-weight-badge",
+			text: `${p.weight || "Regular"}${p.italic ? " Italic" : ""}`,
+		});
+		badge.setAttribute("data-weight", String(p.weightNumber));
 	}
 
 	// Ordered multi-select for one font role: the current fonts as a reorderable
@@ -550,8 +605,9 @@ class FontSettingTab extends PluginSettingTab {
 
 		selected.forEach((path, index) => {
 			const row = new Setting(containerEl)
-				.setName(`${index + 1}. ${this.label_for(options, path)}`)
+				.setName(`${index + 1}. ${parse_font(path).family}`)
 				.setDesc(index === 0 ? "Preferred" : "Fallback");
+			this.appendWeightBadge(row.nameEl, path);
 			const el = row.settingEl;
 			el.addClass("custom-font-role-item");
 
@@ -778,7 +834,8 @@ class FontSettingTab extends PluginSettingTab {
 		});
 
 		extra.forEach((path) => {
-			const row = new Setting(details).setName(font_label(path));
+			const row = new Setting(details).setName(parse_font(path).family);
+			this.appendWeightBadge(row.nameEl, path);
 			row.addExtraButton((b) => {
 				b.setIcon("x").onClick(async () => {
 					await this.commit(
@@ -833,32 +890,37 @@ class FontSettingTab extends PluginSettingTab {
 			text: "Reuse your fonts",
 		});
 		card.createDiv({
-			text: "Every loaded font gives you a font-family name (for your own CSS) and a utility class you can apply per note via cssclasses. Click a value to copy it.",
+			text: "Each loaded font family gives you two things you can reuse anywhere. Weights of the same family are grouped under one name. Click a value to copy it.",
 		});
 
-		const list = card.createDiv({ cls: "custom-font-ref-list" });
+		// One doc row per family: its font-family name and its utility class.
+		const slugs = new Map<string, string>();
 		for (const path of loaded) {
-			const family = font_family_from_path(path);
+			const p = parse_font(path);
+			if (!slugs.has(p.slug)) slugs.set(p.slug, p.family);
+		}
+		const list = card.createDiv({ cls: "custom-font-ref-list" });
+		for (const [slug, family] of slugs) {
 			const row = list.createDiv({ cls: "custom-font-ref-row" });
-			row.createSpan({
-				cls: "custom-font-ref-name",
-				text: font_label(path),
-			});
-			this.copyable(row, "font-family", family, family);
-			this.copyable(row, "class", `.font-${family}`, `font-${family}`);
+			row.createSpan({ cls: "custom-font-ref-name", text: family });
+			this.copyable(row, "font-family", slug, slug);
+			this.copyable(row, "class", `.font-${slug}`, `font-${slug}`);
 		}
 
-		// How to actually apply a class to a single note.
-		const example = font_family_from_path(loaded[0]);
-		card.createDiv({
-			text: "To use a class, add its name (without the dot) to cssclasses in the note's frontmatter:",
+		// Docs: what each thing is and how to use it.
+		const doc = card.createDiv({ cls: "custom-font-doc" });
+		doc.createEl("p", {
+			text: "Use the font-family name in your own CSS or snippets, e.g. font-family: 'name'.",
 		});
-		const pre = card.createEl("pre");
-		pre.createEl("code", {
+		doc.createEl("p", {
+			text: "Apply the class to a single note by adding its name (without the dot) to cssclasses in the note's frontmatter:",
+		});
+		const example = font_family_from_path(loaded[0]);
+		doc.createEl("pre").createEl("code", {
 			text: `---\ncssclasses:\n  - font-${example}\n---`,
 		});
-		card.createDiv({
-			text: "That note now uses the font. You can also wrap part of a note in a div with the class.",
+		doc.createEl("p", {
+			text: "That note now uses the font. You can also wrap part of a note in a <div> with the class.",
 		});
 	}
 
