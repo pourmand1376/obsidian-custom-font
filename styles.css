@@ -1,4 +1,165 @@
-.custom-font-css-textarea {
-	width: 100%;
-	height: 100px;
+.custom-font-info {
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 3px solid var(--interactive-accent);
+	border-radius: var(--radius-m);
+	padding: 12px 14px;
+	margin-bottom: 18px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.custom-font-info-title {
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+	margin-bottom: 6px;
+}
+
+.custom-font-info ul {
+	margin: 8px 0 0;
+	padding-left: 18px;
+}
+
+.custom-font-info li {
+	margin: 2px 0;
+}
+
+.custom-font-info pre {
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: 8px 10px;
+	margin: 8px 0;
+	overflow-x: auto;
+}
+
+.custom-font-info pre code {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	white-space: pre;
+}
+
+.custom-font-ref-list {
+	margin-top: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.custom-font-ref-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+	padding: 4px 0;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.custom-font-ref-row:first-child {
+	border-top: none;
+}
+
+.custom-font-ref-name {
+	min-width: 120px;
+	color: var(--text-normal);
+	font-weight: var(--font-semibold);
+}
+
+.custom-font-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.custom-font-chip-label {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.custom-font-chip code {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+}
+
+.custom-font-copy-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px 6px;
+	cursor: pointer;
+	box-shadow: none;
+	background-color: transparent;
+	color: var(--text-muted);
+}
+
+.custom-font-copy-btn:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.custom-font-copy-btn .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.custom-font-role-item {
+	border-left: 2px solid var(--background-modifier-border);
+	padding-left: 12px;
+	margin-left: 4px;
+}
+
+.custom-font-drag-handle {
+	cursor: grab;
+}
+
+.custom-font-drag-handle:active {
+	cursor: grabbing;
+}
+
+.custom-font-role-item.custom-font-dragging {
+	opacity: 0.5;
+}
+
+.custom-font-role-item.custom-font-dragover {
+	border-top: 2px solid var(--interactive-accent);
+}
+
+.custom-font-role-empty {
+	opacity: 0.7;
+	margin-left: 4px;
+}
+
+.custom-font-warning {
+	background-color: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-left: 3px solid var(--text-warning);
+	border-radius: var(--radius-m);
+	padding: 12px 14px;
+	margin: 8px 0 18px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.custom-font-warning-title {
+	font-weight: var(--font-semibold);
+	color: var(--text-warning);
+	margin-bottom: 6px;
+}
+
+.custom-font-extra {
+	margin-bottom: 18px;
+}
+
+.custom-font-extra > summary {
+	cursor: pointer;
+	padding: 8px 0;
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+
+.custom-font-extra-desc {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin: 4px 0 8px;
 }

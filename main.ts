@@ -1,37 +1,126 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, Plugin, PluginSettingTab, Setting, setIcon } from "obsidian";
+
+// Sentinel value meaning "don't override this role, keep Obsidian's default font".
+const DEFAULT_FONT = "Default";
+
+// Emoji fallback fonts appended to every custom font stack so that emojis still
+// render when the chosen font lacks emoji glyphs. When a role override such as
+// `--font-text-override` is set, Obsidian replaces its whole font stack
+// (including the emoji fonts it normally appends), so we re-add them here.
+const EMOJI_FONTS = `"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`;
+
+const FONT_EXTENSIONS = ["ttf", "otf", "woff", "woff2"];
 
 interface FontPluginSettings {
 	font_folder: string;
-	font: string;
+	// Each role holds an ordered list of font paths forming a fallback chain:
+	// the first font that has a glyph wins, per character. Empty = no override.
+	interface_font: string[];
+	text_font: string[];
+	monospace_font: string[];
+	// Extra fonts loaded only so they are usable via their utility class
+	// (cssclasses), without being applied to any role.
+	extra_fonts: string[];
+	emoji_support: boolean;
 	force_mode: boolean;
-	custom_css_mode: boolean;
-	custom_css: string;
+	// Legacy single-font setting, kept only so we can migrate existing users.
+	font?: string;
 }
 
 const DEFAULT_SETTINGS: FontPluginSettings = {
 	font_folder: "",
-	font: "None",
+	interface_font: [],
+	text_font: [],
+	monospace_font: [],
+	extra_fonts: [],
+	emoji_support: true,
 	force_mode: false,
-	custom_css_mode: false,
-	custom_css: "",
 };
 
-function get_default_css(font_family_name: string, css_class = ":root *") {
-	return `${css_class} {
-		--font-default: '${font_family_name}';
-		--default-font: '${font_family_name}';
-		--font-family-editor: '${font_family_name}';
-		--font-monospace-default: '${font_family_name}';
-		--font-interface-override: '${font_family_name}';
-		--font-text-override: '${font_family_name}';
-		--font-monospace-override: '${font_family_name}';
-	}
-`;
+// Coerce a stored role value (which may be a legacy string, the "Default"
+// sentinel, undefined, or already an array) into an ordered list of font paths.
+function to_path_array(value: unknown): string[] {
+	const items = Array.isArray(value) ? value : value === undefined ? [] : [value];
+	return items.filter(
+		(v): v is string =>
+			typeof v === "string" &&
+			v.length > 0 &&
+			v.toLowerCase() !== DEFAULT_FONT.toLowerCase()
+	);
 }
-function get_custom_css(font_family_name: string, css_class = ":root *") {
-	return `${css_class} * {
-		font-family: '${font_family_name}' !important;
-		}`;
+
+function with_trailing_slash(folder: string): string {
+	return folder.endsWith("/") ? folder : folder + "/";
+}
+
+function basename(path: string): string {
+	const parts = path.split("/");
+	return parts[parts.length - 1];
+}
+
+// A font's CSS family name is derived from its file's basename (without
+// extension, lowercased), so a font is referenced the same way regardless of
+// which folder it lives in.
+function font_family_from_path(path: string): string {
+	return basename(path).split(".")[0].toLowerCase();
+}
+
+// Weight keywords that may appear in a font filename, mapped to a display label.
+const FONT_WEIGHTS: Record<string, string> = {
+	thin: "Thin",
+	hairline: "Thin",
+	extralight: "ExtraLight",
+	ultralight: "ExtraLight",
+	light: "Light",
+	regular: "Regular",
+	normal: "Regular",
+	book: "Regular",
+	medium: "Medium",
+	semibold: "SemiBold",
+	demibold: "SemiBold",
+	bold: "Bold",
+	extrabold: "ExtraBold",
+	ultrabold: "ExtraBold",
+	black: "Black",
+	heavy: "Black",
+};
+
+// Derive a human label like "Roboto Bold Italic" from a font filename, so two
+// files of the same family read as related. Weight/italic tokens are pulled out
+// of the filename and the remaining tokens form the family name.
+function font_label(path: string): string {
+	const stem = basename(path).replace(/\.[^./]+$/, "");
+	const family_tokens: string[] = [];
+	let weight = "";
+	let italic = false;
+	for (const raw of stem.split(/[-_ ]+/)) {
+		if (!raw) continue;
+		let t = raw.toLowerCase();
+		if (t.endsWith("italic")) {
+			italic = true;
+			t = t.slice(0, -"italic".length);
+		} else if (t.endsWith("oblique")) {
+			italic = true;
+			t = t.slice(0, -"oblique".length);
+		}
+		if (t === "") continue; // token was purely italic/oblique
+		if (FONT_WEIGHTS[t]) {
+			weight = FONT_WEIGHTS[t];
+			continue;
+		}
+		family_tokens.push(raw);
+	}
+	let label = family_tokens.join(" ") || stem;
+	if (weight) label += ` ${weight}`;
+	if (italic) label += " Italic";
+	return label;
+}
+
+function is_font_file(path: string): boolean {
+	const name = basename(path);
+	if (name.startsWith(".")) return false;
+	const ext = name.split(".").pop()?.toLowerCase() ?? "";
+	return FONT_EXTENSIONS.includes(ext);
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
@@ -80,30 +169,99 @@ export default class FontPlugin extends Plugin {
 	plugin_folder_path = `${this.config_dir}/plugins/custom-font-loader`;
 	private processingNoticeShown = false;
 
+	// Build the comma-separated font-family stack for a role: each chosen font in
+	// order, then the emoji fonts last (when enabled). The browser does per-glyph
+	// fallback down this list, so earlier fonts take precedence character by character.
+	private font_stack(font_paths: string[]): string {
+		const families = font_paths.map(
+			(path) => `'${font_family_from_path(path)}'`
+		);
+		if (this.settings.emoji_support) families.push(EMOJI_FONTS);
+		return families.join(", ");
+	}
+
+	// Every folder scanned for fonts: the vault-root `fonts` folder and the
+	// config-dir `fonts` folder are always scanned, plus whatever folder the
+	// user configured. Reading from all of them by default is harmless and
+	// lets fonts live wherever is convenient.
+	font_folders(): string[] {
+		const set = new Set<string>();
+		const configured = this.settings.font_folder.trim();
+		if (configured) set.add(with_trailing_slash(configured));
+		set.add("fonts/");
+		set.add(`${this.config_dir}/fonts/`);
+		return [...set];
+	}
+
+	// Every font file (full vault-relative path) found across all scanned folders.
+	async list_font_files(): Promise<string[]> {
+		const paths: string[] = [];
+		const seen = new Set<string>();
+		for (const folder of this.font_folders()) {
+			try {
+				if (!(await this.app.vault.adapter.exists(folder))) continue;
+				const listing = await this.app.vault.adapter.list(folder);
+				for (const file of listing.files) {
+					if (!is_font_file(file)) continue;
+					if (seen.has(file)) continue;
+					seen.add(file);
+					paths.push(file);
+				}
+			} catch (error) {
+				console.error(`Error listing fonts in ${folder}:`, error);
+			}
+		}
+		return paths;
+	}
+
+	// Every font found is loaded (its @font-face declared), so all of them are
+	// usable by name — through the role overrides, the per-font utility classes,
+	// The fonts whose @font-face is loaded: the fonts chosen for the three roles
+	// plus the extra fonts the user added for their utility class only. Only
+	// these are loaded, so startup stays light instead of loading every file.
+	loaded_fonts(): string[] {
+		const set = new Set<string>();
+		for (const role of [
+			this.settings.interface_font,
+			this.settings.text_font,
+			this.settings.monospace_font,
+			this.settings.extra_fonts,
+		]) {
+			for (const path of role) set.add(path);
+		}
+		return [...set];
+	}
+
+	// A compact utility class per loaded font so users can apply a font to
+	// specific notes/elements — e.g. add `cssclasses: [font-myfont]` to a note's
+	// frontmatter, or wrap content in `<div class="font-myfont">`. The `*`
+	// descendant selector plus `!important` force the font on everything inside,
+	// so the class reliably wins wherever it is applied.
+	private utility_classes_css(paths: string[]): string {
+		const lines: string[] = [];
+		for (const file of paths) {
+			const family = font_family_from_path(file);
+			const stack = this.font_stack([file]);
+			lines.push(
+				`.font-${family}, .font-${family} * { font-family: ${stack} !important; }`
+			);
+		}
+		return lines.join("\n");
+	}
+
 	async load_plugin() {
 		await this.loadSettings();
 		try {
-			const font_file_name: string = this.settings.font;
-			if (font_file_name && font_file_name.toLowerCase() != "none") {
-				if (font_file_name != "all") {
-					await this.process_and_load_font(font_file_name, false);
-				} else {
-					applyCss("", "custom_font_base64");
-					const files = await this.app.vault.adapter.list(
-						this.settings.font_folder
-					);
-					for (const file of files.files) {
-						const file_name = file.replace(
-							this.settings.font_folder,
-							""
-						);
-						await this.process_and_load_font(file_name, true);
-					}
-				}
-			} else {
-				applyCss("", "custom_font_base64");
-				applyCss("", "custom_font_general");
+			// Reset both managed stylesheets, then rebuild them from scratch.
+			applyCss("", "custom_font_base64");
+
+			const fonts = this.loaded_fonts();
+			for (const font_path of fonts) {
+				await this.process_and_load_font(font_path);
 			}
+
+			this.apply_general_css();
+			applyCss(this.utility_classes_css(fonts), "custom_font_classes");
 		} catch (error) {
 			console.error("Error loading fonts:", error);
 			const message = error instanceof Error ? error.message : String(error);
@@ -111,55 +269,73 @@ export default class FontPlugin extends Plugin {
 		}
 	}
 
-	private async process_and_load_font(
-		font_file_name: string,
-		load_all_fonts: boolean
-	) {
+	// Build the `:root, body { ... }` override block from the current per-role
+	// selections. Shared by normal mode and by the custom-CSS template seed, so
+	// enabling custom mode starts from the user's actual configuration.
+	// `important` appends !important (used by force mode). Returns "" when no
+	// role is set.
+	//
+	// Each role sets its `-override` variable (the modern hook) plus the legacy
+	// variables older themes/Obsidian versions read, mapped to the matching role
+	// so the three stay independent. `--font-default` is the global base
+	// (interface); monospace has its own base so it is unaffected. `body` is
+	// targeted alongside `:root` because Obsidian sets these variables on `body`,
+	// and a value set directly on `body` beats one merely inherited from `:root`.
+	role_override_css(important: boolean): string {
+		const lines: string[] = [];
+		const bang = important ? " !important" : "";
+		const push_role = (paths: string[], vars: string[]) => {
+			if (paths.length === 0) return;
+			const stack = this.font_stack(paths);
+			for (const name of vars) lines.push(`\t${name}: ${stack}${bang};`);
+		};
+		push_role(this.settings.interface_font, [
+			"--font-interface-override",
+			"--font-default",
+			"--default-font",
+		]);
+		push_role(this.settings.text_font, [
+			"--font-text-override",
+			"--font-family-editor",
+		]);
+		push_role(this.settings.monospace_font, [
+			"--font-monospace-override",
+			"--font-monospace-default",
+		]);
+		if (lines.length === 0) return "";
+		return `:root, body {\n${lines.join("\n")}\n}\n`;
+	}
+
+	// Emit the per-role font-family overrides into the general stylesheet.
+	private apply_general_css() {
+		applyCss(
+			this.role_override_css(this.settings.force_mode),
+			"custom_font_general"
+		);
+	}
+
+	private async process_and_load_font(font_path: string) {
 		try {
-			const css_font_path = `${this.plugin_folder_path}/${font_file_name
+			const css_font_path = `${this.plugin_folder_path}/${basename(font_path)
 				.toLowerCase()
 				.replace(".", "_")}.css`;
 
 			if (!(await this.app.vault.adapter.exists(css_font_path))) {
-				await this.convert_font_to_css(font_file_name, css_font_path);
-				// Load the font directly after conversion
-				await this.load_font(css_font_path, load_all_fonts);
-				await this.load_css(font_file_name);
-			} else {
-				await this.load_font(css_font_path, load_all_fonts);
-				await this.load_css(font_file_name);
+				await this.convert_font_to_css(font_path, css_font_path);
 			}
+			await this.load_font(css_font_path);
 		} catch (error) {
-			console.error(`Error processing font ${font_file_name}:`, error);
-			new Notice(`Failed to process font: ${font_file_name}`);
+			console.error(`Error processing font ${font_path}:`, error);
+			new Notice(`Failed to process font: ${basename(font_path)}`);
 		}
 	}
-	private async load_font(css_font_path: string, appendMode: boolean) {
+
+	private async load_font(css_font_path: string) {
 		const content = await this.app.vault.adapter.read(css_font_path);
-		applyCss(content, "custom_font_base64", appendMode);
-	}
-	private async load_css(font_file_name: string) {
-		let css_string = "";
-		const font_family_name: string = font_file_name.split(".")[0].toLowerCase();
-
-		if (this.settings.custom_css_mode) {
-			css_string = this.settings.custom_css;
-		} else {
-			css_string = get_default_css(font_family_name);
-		}
-		if (this.settings.force_mode)
-			css_string += `
-					* {
-						font-family: '${font_family_name}' !important;
-					}
-						`;
-		applyCss(css_string, "custom_font_general");
+		applyCss(content, "custom_font_base64", true);
 	}
 
-	private async convert_font_to_css(
-		font_file_name: string,
-		css_font_path: string
-	) {
+	private async convert_font_to_css(font_path: string, css_font_path: string) {
 		try {
 			// Show notice only once to prevent spam
 			if (!this.processingNoticeShown) {
@@ -171,15 +347,11 @@ export default class FontPlugin extends Plugin {
 				}, 5000);
 			}
 
-			const file = `${this.settings.font_folder}/${font_file_name}`;
-			const arrayBuffer = await this.app.vault.adapter.readBinary(file);
+			const arrayBuffer = await this.app.vault.adapter.readBinary(font_path);
 
-			const font_family_name: string = font_file_name
-				.split(".")[0]
-				.toLowerCase();
-			const font_extension_name: string = font_file_name
-				.split(".")[1]
-				.toLowerCase();
+			const font_family_name: string = font_family_from_path(font_path);
+			const font_extension_name: string =
+				basename(font_path).split(".").pop()?.toLowerCase() ?? "";
 
 			// Use CSS Font Loading API for better performance
 			const fontBlob = new Blob([arrayBuffer]);
@@ -236,7 +408,7 @@ export default class FontPlugin extends Plugin {
 				await this.app.vault.adapter.write(css_font_path, base64_css);
 			}
 		} catch (error) {
-			console.error(`Error converting font ${font_file_name} to CSS:`, error);
+			console.error(`Error converting font ${font_path} to CSS:`, error);
 			throw error; // Re-throw to be handled by caller
 		}
 	}
@@ -251,11 +423,61 @@ export default class FontPlugin extends Plugin {
 	onunload() {
 		removeCss("custom_font_base64");
 		removeCss("custom_font_general");
+		removeCss("custom_font_classes");
 	}
 
 	async loadSettings() {
 		const data = (await this.loadData()) as Partial<FontPluginSettings> | null;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+		// Drop the now-removed custom-CSS settings if an old data file carried them.
+		const stale = this.settings as unknown as Record<string, unknown>;
+		delete stale.custom_css_mode;
+		delete stale.custom_css;
+		// Normalize roles to ordered path arrays (tolerating older string formats).
+		this.settings.interface_font = to_path_array(this.settings.interface_font);
+		this.settings.text_font = to_path_array(this.settings.text_font);
+		this.settings.monospace_font = to_path_array(this.settings.monospace_font);
+		this.settings.extra_fonts = to_path_array(this.settings.extra_fonts);
+		// `font_folder` is an OPTIONAL extra folder; leave it empty when unset
+		// (the vault-root and config-dir `fonts` folders are always scanned).
+		this.settings.font_folder = this.settings.font_folder.trim();
+		if (this.settings.font_folder !== "") {
+			this.settings.font_folder = with_trailing_slash(this.settings.font_folder);
+		}
+		await this.migrate_legacy_settings();
+	}
+
+	// Migrate the old single `font` setting onto the new per-role settings so
+	// existing users see no visible change after upgrading.
+	private async migrate_legacy_settings() {
+		const legacy = this.settings.font;
+		if (legacy === undefined) return;
+
+		const roles_untouched =
+			this.settings.interface_font.length === 0 &&
+			this.settings.text_font.length === 0 &&
+			this.settings.monospace_font.length === 0;
+
+		if (roles_untouched) {
+			if (legacy.toLowerCase() === "all") {
+				// The old "Multiple fonts" mode relied on custom CSS to reference
+				// fonts. Every font is now loaded and exposed by name/class anyway,
+				// so there is nothing to migrate.
+			} else if (legacy && legacy.toLowerCase() !== "none") {
+				// The old single font (a bare filename in font_folder) applied to
+				// every role at once. Resolve it to a full path.
+				const base = with_trailing_slash(
+					this.settings.font_folder || `${this.config_dir}/fonts`
+				);
+				const path = base + legacy;
+				this.settings.interface_font = [path];
+				this.settings.text_font = [path];
+				this.settings.monospace_font = [path];
+			}
+		}
+
+		delete this.settings.font;
+		await this.saveData(this.settings);
 	}
 
 	async saveSettings() {
@@ -275,62 +497,191 @@ class FontSettingTab extends PluginSettingTab {
 		void this.renderSettings();
 	}
 
+	// One option per font found across all scanned folders. The stored value is
+	// the font's full path; the label shows the parsed family + weight (with its
+	// folder) so same-family fonts read as related and stay distinguishable.
+	private async font_options(): Promise<{ key: string; label: string }[]> {
+		const options: { key: string; label: string }[] = [];
+		const files = await this.plugin.list_font_files();
+		for (const file of files) {
+			const dir = file.slice(0, file.length - basename(file).length);
+			const label = dir ? `${font_label(file)}  (${dir})` : font_label(file);
+			options.push({ key: file, label });
+		}
+		return options;
+	}
+
+	private label_for(
+		options: { key: string; label: string }[],
+		path: string
+	): string {
+		return options.find((o) => o.key === path)?.label ?? basename(path);
+	}
+
+	private async commit(roles: string[], set: (value: string[]) => void) {
+		set(roles);
+		await this.plugin.saveSettings();
+		await this.plugin.load_plugin();
+		this.display();
+	}
+
+	// Ordered multi-select for one font role: the current fonts as a reorderable
+	// list (move up / down / remove) plus an "Add font" dropdown that appends.
+	private renderFontRole(
+		containerEl: HTMLElement,
+		name: string,
+		desc: string,
+		options: { key: string; label: string }[],
+		get: () => string[],
+		set: (value: string[]) => void
+	) {
+		const selected = get();
+
+		new Setting(containerEl).setName(name).setDesc(desc).setHeading();
+
+		if (selected.length === 0) {
+			new Setting(containerEl)
+				.setDesc("Default — not overridden.")
+				.settingEl.addClass("custom-font-role-empty");
+		}
+
+		// Index of the row currently being dragged, shared across this role's rows.
+		let drag_from: number | null = null;
+
+		selected.forEach((path, index) => {
+			const row = new Setting(containerEl)
+				.setName(`${index + 1}. ${this.label_for(options, path)}`)
+				.setDesc(index === 0 ? "Preferred" : "Fallback");
+			const el = row.settingEl;
+			el.addClass("custom-font-role-item");
+
+			// Grip handle: dragging starts only from the handle, so the row's
+			// buttons stay clickable.
+			row.addExtraButton((b) => {
+				b.setIcon("lucide-menu");
+				b.extraSettingsEl.addClass("custom-font-drag-handle");
+				b.extraSettingsEl.setAttribute("aria-label", "Drag to reorder");
+				b.extraSettingsEl.addEventListener("mousedown", () => {
+					el.draggable = true;
+				});
+			});
+			row.addExtraButton((b) => {
+				b.setIcon("x").onClick(async () => {
+					await this.commit(
+						selected.filter((_, i) => i !== index),
+						set
+					);
+				});
+				b.extraSettingsEl.setAttribute("aria-label", "Remove");
+			});
+
+			el.addEventListener("dragstart", (e) => {
+				drag_from = index;
+				el.addClass("custom-font-dragging");
+				e.dataTransfer?.setData("text/plain", String(index));
+			});
+			el.addEventListener("dragend", () => {
+				el.draggable = false;
+				el.removeClass("custom-font-dragging");
+			});
+			el.addEventListener("dragover", (e) => {
+				e.preventDefault();
+				el.addClass("custom-font-dragover");
+			});
+			el.addEventListener("dragleave", () => {
+				el.removeClass("custom-font-dragover");
+			});
+			el.addEventListener("drop", (e) => {
+				e.preventDefault();
+				el.removeClass("custom-font-dragover");
+				if (drag_from === null || drag_from === index) return;
+				const next = [...selected];
+				const [moved] = next.splice(drag_from, 1);
+				next.splice(index, 0, moved);
+				drag_from = null;
+				void this.commit(next, set);
+			});
+		});
+
+		const available = options.filter((o) => !selected.includes(o.key));
+		if (available.length > 0) {
+			new Setting(containerEl)
+				.setName("Add font")
+				.setDesc("Fonts are tried in order; the first with a glyph wins.")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("", "Choose a font…");
+					for (const opt of available) {
+						dropdown.addOption(opt.key, opt.label);
+					}
+					dropdown.setValue("").onChange(async (value) => {
+						if (!value) return;
+						await this.commit([...selected, value], set);
+					});
+				});
+		}
+	}
+
 	private async renderSettings() {
 		const { containerEl } = this;
 
 		containerEl.empty();
 
-		const infoContainer = containerEl.createDiv();
-		infoContainer.setText(
-			"In order to set the font, copy your font into fonts directory that you set"
-		);
+		const infoCard = containerEl.createDiv({ cls: "custom-font-info" });
+		infoCard.createDiv({
+			cls: "custom-font-info-title",
+			text: "Where to put your fonts",
+		});
+		infoCard.createDiv({
+			text: "Drop your font files (.ttf, .otf, .woff, .woff2) into any of these folders — all are scanned automatically:",
+		});
+		const pathsList = infoCard.createEl("ul");
+		pathsList.createEl("li", {
+			text: "Vault root: a 'fonts' folder",
+		});
+		pathsList.createEl("li", {
+			text: `Config dir: '${this.app.vault.configDir}/fonts'`,
+		});
+		pathsList.createEl("li", {
+			text: "Custom: whatever folder you set below",
+		});
 
 		new Setting(containerEl)
 			.setName("Fonts folder")
-			.setDesc("Folder to look for your custom fonts")
+			.setDesc(
+				"Optional custom folder to also scan for fonts (e.g. 'assets/fonts')."
+			)
 			.addText((text) => {
-				text.onChange(async (value) => {
-					this.plugin.settings.font_folder = value;
-					await this.plugin.saveSettings();
-					await this.plugin.loadSettings();
-				});
-				if (this.plugin.settings.font_folder.trim() == "") {
-					this.plugin.settings.font_folder = `${this.app.vault.configDir}/fonts`;
-				}
-				if (!this.plugin.settings.font_folder.endsWith("/"))
-					this.plugin.settings.font_folder =
-						this.plugin.settings.font_folder + "/";
+				text.setPlaceholder("Path to an extra fonts folder");
 				text.setValue(this.plugin.settings.font_folder);
+				text.onChange(async (value) => {
+					const trimmed = value.trim();
+					this.plugin.settings.font_folder =
+						trimmed === "" ? "" : with_trailing_slash(trimmed);
+					await this.plugin.saveSettings();
+					await this.plugin.load_plugin();
+				});
 			});
 
-		const font_folder_path = this.plugin.settings.font_folder;
-
-		const options = [{ name: "none", value: "None" }];
-		try {
-			if (!(await this.app.vault.adapter.exists(font_folder_path))) {
-				await this.app.vault.adapter.mkdir(font_folder_path);
-			}
-			if (await this.app.vault.adapter.exists(font_folder_path)) {
-				const files = await this.app.vault.adapter.list(
-					font_folder_path
-				);
-
-				// Add files as options
-				for (const file of files.files) {
-					const file_name = file.replace(font_folder_path, "");
-					if (file_name.startsWith(".")) continue; //ignore hidden files
-					options.push({ name: file_name, value: file_name });
+		// Make sure the config-dir fonts folder exists so users always have a
+		// guaranteed place to drop fonts, and the custom folder too when set.
+		const ensure_folders = [`${this.app.vault.configDir}/fonts/`];
+		if (this.plugin.settings.font_folder) {
+			ensure_folders.push(this.plugin.settings.font_folder);
+		}
+		for (const folder of ensure_folders) {
+			try {
+				if (!(await this.app.vault.adapter.exists(folder))) {
+					await this.app.vault.adapter.mkdir(folder);
 				}
+			} catch (error) {
+				console.error(error);
 			}
-			options.push({ name: "all", value: "Multiple fonts" });
-		} catch (error) {
-			console.error(error);
 		}
 
 		new Setting(containerEl)
 			.setName("Reload fonts from folder")
 			.setDesc(
-				"This button reloades from the folder you specified (it also creates the folder for you)"
+				"This button reloades from the folders scanned (it also creates the folder for you)"
 			)
 			.addButton((button) => {
 				button.setButtonText("Reload");
@@ -340,138 +691,195 @@ class FontSettingTab extends PluginSettingTab {
 					this.display();
 				});
 			});
-		this.containerEl.createDiv();
+
+		const options = await this.font_options();
+
+		if (options.length === 0) {
+			const warn = containerEl.createDiv({ cls: "custom-font-warning" });
+			warn.createDiv({
+				cls: "custom-font-warning-title",
+				text: "No fonts found",
+			});
+			warn.createDiv({
+				text: "We scanned every folder above and found no font files. Add .ttf/.otf/.woff/.woff2 files to one of them, then hit Reload.",
+			});
+			return;
+		}
+
+		// ── Normal mode: the font pickers ──────────────────────────────
+		new Setting(containerEl).setName("Normal mode").setHeading();
+
+		this.renderFontRole(
+			containerEl,
+			"Interface font",
+			"Set the base font for all of Obsidian.",
+			options,
+			() => this.plugin.settings.interface_font,
+			(value) => (this.plugin.settings.interface_font = value)
+		);
+
+		this.renderFontRole(
+			containerEl,
+			"Text font",
+			"Set the font for editing and reading views.",
+			options,
+			() => this.plugin.settings.text_font,
+			(value) => (this.plugin.settings.text_font = value)
+		);
+
+		this.renderFontRole(
+			containerEl,
+			"Monospace font",
+			"Set the font for places like code blocks and frontmatter.",
+			options,
+			() => this.plugin.settings.monospace_font,
+			(value) => (this.plugin.settings.monospace_font = value)
+		);
+
+		// ── Force: override stubborn themes ────────────────────────────
+		new Setting(containerEl).setName("Force").setHeading();
 
 		new Setting(containerEl)
-			.setName("Font")
+			.setName("Force style")
 			.setDesc(
-				`Choose font (if you can't see your fonts, make sure your fonts are in the folder you specified and hit reload.
-				Also if you choose multiple fonts option, we will load and process all fonts in the folder for you. In that case, enable custom CSS mode)`
+				"Adds !important to the fonts you applied so they override a theme (or Obsidian's own appearance settings) that sets fonts with higher priority."
 			)
-			.addDropdown((dropdown) => {
-				// Add options
-				for (const opt of options) {
-					dropdown.addOption(opt.name, opt.value);
-				}
-				dropdown
-					.setValue(this.plugin.settings.font)
-					.onChange(async (value) => {
-						this.plugin.settings.font = value;
-						await this.plugin.saveSettings();
-						await this.plugin.load_plugin();
-						this.display();
-					});
+			.addToggle((toggle) => {
+				toggle.setValue(this.plugin.settings.force_mode);
+				toggle.onChange(async (value) => {
+					this.plugin.settings.force_mode = value;
+					await this.plugin.saveSettings();
+					await this.plugin.load_plugin();
+				});
 			});
 
-		if (this.plugin.settings.font.toLowerCase() != "none") {
+		// ── Additional features: reuse your fonts elsewhere ────────────
+		new Setting(containerEl).setName("Additional features").setHeading();
+		this.render_extra_fonts(containerEl, options);
+		this.render_font_reference(containerEl);
+	}
 
-			new Setting(containerEl)
-				.setName("Force style")
-				.setDesc(
-					"This option should only be used if you have installed a community theme and normal mode doesn't work"
-				)
-				.addToggle((toggle) => {
-					toggle.setValue(this.plugin.settings.force_mode);
-					toggle.onChange(async (value) => {
-						this.plugin.settings.force_mode = value;
-						await this.plugin.saveSettings();
-						await this.plugin.load_plugin();
+	// Collapsed-by-default section to load fonts that aren't applied to any role,
+	// purely so they become usable via their utility class (cssclasses).
+	private render_extra_fonts(
+		containerEl: HTMLElement,
+		options: { key: string; label: string }[]
+	) {
+		const extra = this.plugin.settings.extra_fonts;
+
+		const details = containerEl.createEl("details", {
+			cls: "custom-font-extra",
+		});
+		if (extra.length > 0) details.setAttribute("open", "");
+		details.createEl("summary", { text: "Load extra fonts" });
+		details.createDiv({
+			cls: "custom-font-extra-desc",
+			text: "Load fonts you don't want to apply globally — only to use via their cssclass on specific notes. They appear under 'Reuse your fonts' below.",
+		});
+
+		extra.forEach((path) => {
+			const row = new Setting(details).setName(font_label(path));
+			row.addExtraButton((b) => {
+				b.setIcon("x").onClick(async () => {
+					await this.commit(
+						extra.filter((p) => p !== path),
+						(v) => (this.plugin.settings.extra_fonts = v)
+					);
+				});
+				b.extraSettingsEl.setAttribute("aria-label", "Remove");
+			});
+		});
+
+		// Offer fonts that aren't already loaded by a role or the extra list.
+		const used = new Set<string>([
+			...this.plugin.settings.interface_font,
+			...this.plugin.settings.text_font,
+			...this.plugin.settings.monospace_font,
+			...extra,
+		]);
+		const available = options.filter((o) => !used.has(o.key));
+		if (available.length > 0) {
+			new Setting(details)
+				.setName("Add font")
+				.addDropdown((dropdown) => {
+					dropdown.addOption("", "Choose a font…");
+					for (const opt of available) dropdown.addOption(opt.key, opt.label);
+					dropdown.setValue("").onChange(async (value) => {
+						if (!value) return;
+						await this.commit(
+							[...extra, value],
+							(v) => (this.plugin.settings.extra_fonts = v)
+						);
 					});
 				});
-			new Setting(containerEl)
-				.setName("Custom CSS mode")
-				.setDesc(
-					"If you want to apply a custom CSS style rather than default style, choose this."
-				)
-				.addToggle((toggle) => {
-					toggle.setValue(this.plugin.settings.custom_css_mode);
-					toggle.onChange(async (value) => {
-						if (this.plugin.settings.custom_css_mode == false) {
-							this.plugin.settings.custom_css = "";
-						}
-						this.plugin.settings.custom_css_mode = value;
-						await this.plugin.saveSettings();
-						await this.plugin.load_plugin();
-						this.display();
-					});
-				});
-			if (this.plugin.settings.custom_css_mode) {
-				new Setting(containerEl)
-					.setName("Custom CSS style")
-					.setDesc("Input your custom css style. Use the font filename without extension (in lowercase) as the font-family name. For example, if your font file is 'MyFont.ttf', use 'myfont' in your CSS.")
-					.addTextArea(async (text) => {
-						text.onChange(async (new_value) => {
-							this.plugin.settings.custom_css = new_value;
-							await this.plugin.saveSettings();
-							await this.plugin.load_plugin();
-						});
-
-						if (this.plugin.settings.custom_css == "") {
-							let font_family_name = "";
-							try {
-								font_family_name =
-									this.plugin.settings.font.split(".")[0].toLowerCase();
-							} catch (error) {
-								console.error(error);
-							}
-
-							if (font_family_name == "all") {
-								if (
-									await this.app.vault.adapter.exists(
-										font_folder_path
-									)
-								) {
-									const files = await this.app.vault.adapter.list(
-										font_folder_path
-									);
-
-									let final_str = "";
-									// Add files as options
-									for (const file of files.files) {
-										const file_name = file.split("/")[2];
-										const font_family = file_name.split(".")[0].toLowerCase();
-										final_str +=
-											"\n" +
-											get_custom_css(
-												font_family,
-												"." + font_family
-											);
-									}
-									text.setValue(final_str);
-								}
-							} else {
-								// Generate a helpful template for custom CSS with examples
-								const template = `/* Example CSS for your font: ${font_family_name} */
-
-/* Apply to all text */
-:root * {
-	--font-default: '${font_family_name}';
-	--default-font: '${font_family_name}';
-	--font-family-editor: '${font_family_name}';
-	--font-interface-override: '${font_family_name}';
-	--font-text-override: '${font_family_name}';
-}
-
-/* Example: Apply to custom CSS class */
-.custom-font * {
-	font-family: '${font_family_name}' !important;
-}
-
-/* Example: Apply to specific elements only */
-.custom-font h1, .custom-font h2, .custom-font h3 {
-	font-family: '${font_family_name}' !important;
-}`;
-								text.setValue(template);
-							}
-						} else {
-							text.setValue(this.plugin.settings.custom_css);
-						}
-						text.onChanged();
-
-						text.inputEl.classList.add("custom-font-css-textarea");
-
-					});
-			}
+		} else {
+			details.createDiv({
+				cls: "custom-font-extra-desc",
+				text: "All fonts are already loaded.",
+			});
 		}
+	}
+
+	// For each loaded font (roles + extras) expose two copyable things: its
+	// font-family name (for use in your own CSS or snippets) and its utility
+	// class (apply per note via cssclasses, or wrap an element in a div).
+	private render_font_reference(containerEl: HTMLElement) {
+		const loaded = this.plugin.loaded_fonts();
+		if (loaded.length === 0) return;
+
+		const card = containerEl.createDiv({ cls: "custom-font-info" });
+		card.createDiv({
+			cls: "custom-font-info-title",
+			text: "Reuse your fonts",
+		});
+		card.createDiv({
+			text: "Every loaded font gives you a font-family name (for your own CSS) and a utility class you can apply per note via cssclasses. Click a value to copy it.",
+		});
+
+		const list = card.createDiv({ cls: "custom-font-ref-list" });
+		for (const path of loaded) {
+			const family = font_family_from_path(path);
+			const row = list.createDiv({ cls: "custom-font-ref-row" });
+			row.createSpan({
+				cls: "custom-font-ref-name",
+				text: font_label(path),
+			});
+			this.copyable(row, "font-family", family, family);
+			this.copyable(row, "class", `.font-${family}`, `font-${family}`);
+		}
+
+		// How to actually apply a class to a single note.
+		const example = font_family_from_path(loaded[0]);
+		card.createDiv({
+			text: "To use a class, add its name (without the dot) to cssclasses in the note's frontmatter:",
+		});
+		const pre = card.createEl("pre");
+		pre.createEl("code", {
+			text: `---\ncssclasses:\n  - font-${example}\n---`,
+		});
+		card.createDiv({
+			text: "That note now uses the font. You can also wrap part of a note in a div with the class.",
+		});
+	}
+
+	// A small "label value [copy]" chip that copies `copyText` on click.
+	private copyable(
+		parent: HTMLElement,
+		label: string,
+		display: string,
+		copyText: string
+	) {
+		const chip = parent.createDiv({ cls: "custom-font-chip" });
+		chip.createSpan({ cls: "custom-font-chip-label", text: label });
+		chip.createEl("code", { text: display });
+		const btn = chip.createEl("button", { cls: "custom-font-copy-btn" });
+		setIcon(btn, "copy");
+		btn.setAttribute("aria-label", `Copy '${copyText}'`);
+		btn.addEventListener("click", () => {
+			void navigator.clipboard.writeText(copyText);
+			setIcon(btn, "check");
+			new Notice(`Copied: ${copyText}`);
+			window.setTimeout(() => setIcon(btn, "copy"), 1200);
+		});
 	}
 }
