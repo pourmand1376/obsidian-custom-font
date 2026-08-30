@@ -137,6 +137,30 @@ export default class FontPlugin extends Plugin {
 	private async load_font(css_font_path: string, appendMode: boolean) {
 		const content = await this.app.vault.adapter.read(css_font_path);
 		applyCss(content, "custom_font_base64", appendMode);
+		await this.register_font_face(content);
+	}
+
+	private async register_font_face(css_content: string) {
+		// Parse the @font-face rule to extract font-family and src
+		const familyMatch = css_content.match(/font-family:\s*'([^']+)'/);
+		const srcMatch = css_content.match(/src:\s*(url\([^)]+\))/);
+		if (!familyMatch || !srcMatch) return;
+
+		const fontFamily = familyMatch[1];
+		const fontSrc = srcMatch[1];
+
+		try {
+			const fontFace = new FontFace(fontFamily, fontSrc);
+			await fontFace.load();
+			const fontFaceSet = document.fonts as unknown as {
+				add?: (font: FontFace) => void;
+			};
+			if (typeof fontFaceSet.add === "function") {
+				fontFaceSet.add(fontFace);
+			}
+		} catch (error) {
+			console.warn(`Failed to register font face for '${fontFamily}':`, error);
+		}
 	}
 	private async load_css(font_file_name: string) {
 		let css_string = "";
