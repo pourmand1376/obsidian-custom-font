@@ -4,6 +4,17 @@
 
 Spice up your Obsidian notes with custom fonts! Obsidian doesn't make it easy to set custom fonts — especially on Android and iOS. With this plugin you set your fonts up **once** and they work everywhere: Windows, macOS, Linux, Android, and iPhone. No need to install the font on your operating system.
 
+## Features at a glance
+
+- 🌍 **Works on every platform** — Windows, macOS, Linux, Android, and iOS. Fonts are embedded, so nothing needs installing on the device.
+- 🎨 **A different font for Interface, Text, and Monospace** — style the UI, your notes, and code independently (or leave any of them on Obsidian's default).
+- 🔤 **Multiple fallback fonts per role** — set an ordered list for each; the first font with a matching glyph wins per character. Perfect for mixed scripts (e.g. a Latin font + a Persian/Arabic font).
+- 🅱️ **Automatic multi-weight families** — add each weight file and bold/italic resolve on their own.
+- 😀 **Better emoji support** — color emoji fonts are appended to every stack, so emojis keep rendering even when your font lacks them.
+- 📄 **Per-note fonts** — apply a font to a single note via `cssclasses`, without touching the rest of your vault.
+- 📂 **Automatic font detection** — scans `fonts/` and `.obsidian/fonts`, loading only what you use.
+- 💪 **Force style** — win against themes that hard-code fonts.
+
 ## To get started
 
 1. Put your font files (`.ttf`, `.otf`, `.woff`, `.woff2`) into a `fonts` folder at your vault root, or into `.obsidian/fonts`. Both are scanned automatically (you can also point the plugin at a custom folder).
@@ -11,6 +22,10 @@ Spice up your Obsidian notes with custom fonts! Obsidian doesn't make it easy to
 3. Your fonts are applied instantly, across every platform.
 
 ## Key Features
+
+### Automatic font detection
+
+The plugin scans a `fonts` folder at your vault root **and** `.obsidian/fonts` automatically — drop fonts in either (or point it at a custom folder) and hit **Reload**; no restart needed. Only the fonts you actually use are loaded, so startup stays light.
 
 ### Three independent font roles
 
@@ -28,13 +43,15 @@ Each role is an **ordered list**, not a single font. Add several fonts and drag 
 
 Drop in the individual weight files of a family (`Roboto-Regular.ttf`, `Roboto-Bold.ttf`, `Roboto-BoldItalic.ttf`, …) and the plugin **groups them into one family automatically** by reading the weight/style from each filename. Set the family once and **bold** text uses the Bold file, *italic* uses the Italic file — the browser resolves the right weight per character. Each file's weight is shown as a colored label right where you select it.
 
+**Naming matters:** include the weight in the filename so it's detected. Recognized weights are `Thin`, `ExtraLight`, `Light`, `Regular`, `Medium`, `SemiBold`, `Bold`, `ExtraBold`, and `Black` (plus `Italic`/`Oblique`). Everything before the weight becomes the family name — so `Open-Sans-Bold.ttf` is family "Open Sans", weight Bold.
+
 ### Emoji support
 
 When you override a font, Obsidian normally drops its emoji fallback — so this plugin re-appends cross-platform emoji fonts (Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji) to every font stack. Emojis keep rendering, always.
 
 ### Per-note fonts via CSS classes
 
-Every loaded font also gets a utility class, `.font-<name>`. Apply a font to a **single note** by adding the class name to `cssclasses` in the note's frontmatter:
+Every loaded font also gets a utility class, `.font-<name>`. Apply a font to a **single note** — without changing the rest of your vault — by adding the class name to `cssclasses` in the note's frontmatter:
 
 ```yaml
 ---

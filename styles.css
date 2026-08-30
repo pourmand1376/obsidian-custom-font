@@ -1,3 +1,9 @@
+.custom-font-hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-bottom: 12px;
+}
+
 .custom-font-info {
 	background-color: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);

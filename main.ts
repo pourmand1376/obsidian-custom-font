@@ -1,4 +1,12 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting, setIcon } from "obsidian";
+import {
+	App,
+	Notice,
+	Platform,
+	Plugin,
+	PluginSettingTab,
+	Setting,
+	setIcon,
+} from "obsidian";
 
 // Sentinel value meaning "don't override this role, keep Obsidian's default font".
 const DEFAULT_FONT = "Default";
@@ -603,6 +611,14 @@ class FontSettingTab extends PluginSettingTab {
 		// Index of the row currently being dragged, shared across this role's rows.
 		let drag_from: number | null = null;
 
+		const move = (from: number, to: number) => {
+			if (to < 0 || to >= selected.length) return;
+			const next = [...selected];
+			const [moved] = next.splice(from, 1);
+			next.splice(to, 0, moved);
+			void this.commit(next, set);
+		};
+
 		selected.forEach((path, index) => {
 			const row = new Setting(containerEl)
 				.setName(`${index + 1}. ${parse_font(path).family}`)
@@ -611,16 +627,33 @@ class FontSettingTab extends PluginSettingTab {
 			const el = row.settingEl;
 			el.addClass("custom-font-role-item");
 
-			// Grip handle: dragging starts only from the handle, so the row's
-			// buttons stay clickable.
-			row.addExtraButton((b) => {
-				b.setIcon("lucide-menu");
-				b.extraSettingsEl.addClass("custom-font-drag-handle");
-				b.extraSettingsEl.setAttribute("aria-label", "Drag to reorder");
-				b.extraSettingsEl.addEventListener("mousedown", () => {
-					el.draggable = true;
+			if (Platform.isMobile) {
+				// Touch drag-and-drop is unreliable, so reorder with buttons.
+				if (index > 0) {
+					row.addExtraButton((b) => {
+						b.setIcon("arrow-up").onClick(() => move(index, index - 1));
+						b.extraSettingsEl.setAttribute("aria-label", "Move up");
+					});
+				}
+				if (index < selected.length - 1) {
+					row.addExtraButton((b) => {
+						b.setIcon("arrow-down").onClick(() => move(index, index + 1));
+						b.extraSettingsEl.setAttribute("aria-label", "Move down");
+					});
+				}
+			} else {
+				// Grip handle: dragging starts only from the handle, so the row's
+				// buttons stay clickable.
+				row.addExtraButton((b) => {
+					b.setIcon("lucide-menu");
+					b.extraSettingsEl.addClass("custom-font-drag-handle");
+					b.extraSettingsEl.setAttribute("aria-label", "Drag to reorder");
+					b.extraSettingsEl.addEventListener("mousedown", () => {
+						el.draggable = true;
+					});
 				});
-			});
+			}
+
 			row.addExtraButton((b) => {
 				b.setIcon("x").onClick(async () => {
 					await this.commit(
@@ -630,6 +663,8 @@ class FontSettingTab extends PluginSettingTab {
 				});
 				b.extraSettingsEl.setAttribute("aria-label", "Remove");
 			});
+
+			if (Platform.isMobile) return; // no drag wiring on touch
 
 			el.addEventListener("dragstart", (e) => {
 				drag_from = index;
@@ -682,73 +717,18 @@ class FontSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		const infoCard = containerEl.createDiv({ cls: "custom-font-info" });
-		infoCard.createDiv({
-			cls: "custom-font-info-title",
-			text: "Where to put your fonts",
-		});
-		infoCard.createDiv({
-			text: "Drop your font files (.ttf, .otf, .woff, .woff2) into any of these folders — all are scanned automatically:",
-		});
-		const pathsList = infoCard.createEl("ul");
-		pathsList.createEl("li", {
-			text: "Vault root: a 'fonts' folder",
-		});
-		pathsList.createEl("li", {
-			text: `Config dir: '${this.app.vault.configDir}/fonts'`,
-		});
-		pathsList.createEl("li", {
-			text: "Custom: whatever folder you set below",
-		});
-
-		new Setting(containerEl)
-			.setName("Fonts folder")
-			.setDesc(
-				"Optional custom folder to also scan for fonts (e.g. 'assets/fonts')."
-			)
-			.addText((text) => {
-				text.setPlaceholder("Path to an extra fonts folder");
-				text.setValue(this.plugin.settings.font_folder);
-				text.onChange(async (value) => {
-					const trimmed = value.trim();
-					this.plugin.settings.font_folder =
-						trimmed === "" ? "" : with_trailing_slash(trimmed);
-					await this.plugin.saveSettings();
-					await this.plugin.load_plugin();
-				});
-			});
-
-		// Make sure the config-dir fonts folder exists so users always have a
-		// guaranteed place to drop fonts, and the custom folder too when set.
-		const ensure_folders = [`${this.app.vault.configDir}/fonts/`];
-		if (this.plugin.settings.font_folder) {
-			ensure_folders.push(this.plugin.settings.font_folder);
-		}
-		for (const folder of ensure_folders) {
-			try {
-				if (!(await this.app.vault.adapter.exists(folder))) {
-					await this.app.vault.adapter.mkdir(folder);
-				}
-			} catch (error) {
-				console.error(error);
-			}
-		}
-
-		new Setting(containerEl)
-			.setName("Reload fonts from folder")
-			.setDesc(
-				"This button reloades from the folders scanned (it also creates the folder for you)"
-			)
-			.addButton((button) => {
-				button.setButtonText("Reload");
-				button.onClick(async () => {
-					await this.plugin.saveSettings();
-					await this.plugin.load_plugin();
-					this.display();
-				});
-			});
+		// Ensure there is always a place to drop fonts.
+		await this.ensure_font_folders();
 
 		const options = await this.font_options();
+
+		// Compact guidance + reload, kept at the very top for the common case:
+		// most users just want to pick a font and go.
+		containerEl.createDiv({
+			cls: "custom-font-hint",
+			text: `Put your fonts in a 'fonts' folder (at your vault root) or in '${this.app.vault.configDir}/fonts', then pick them below. New files appear after you reload.`,
+		});
+		this.render_reload(containerEl);
 
 		if (options.length === 0) {
 			const warn = containerEl.createDiv({ cls: "custom-font-warning" });
@@ -757,13 +737,10 @@ class FontSettingTab extends PluginSettingTab {
 				text: "No fonts found",
 			});
 			warn.createDiv({
-				text: "We scanned every folder above and found no font files. Add .ttf/.otf/.woff/.woff2 files to one of them, then hit Reload.",
+				text: "No .ttf/.otf/.woff/.woff2 files were found. Add some to a fonts folder, then reload.",
 			});
 			return;
 		}
-
-		// ── Normal mode: the font pickers ──────────────────────────────
-		new Setting(containerEl).setName("Normal mode").setHeading();
 
 		this.renderFontRole(
 			containerEl,
@@ -792,8 +769,8 @@ class FontSettingTab extends PluginSettingTab {
 			(value) => (this.plugin.settings.monospace_font = value)
 		);
 
-		// ── Force: override stubborn themes ────────────────────────────
-		new Setting(containerEl).setName("Force").setHeading();
+		// ── Advanced (below the fold for the common case) ──────────────
+		new Setting(containerEl).setName("Advanced").setHeading();
 
 		new Setting(containerEl)
 			.setName("Force style")
@@ -809,10 +786,96 @@ class FontSettingTab extends PluginSettingTab {
 				});
 			});
 
-		// ── Additional features: reuse your fonts elsewhere ────────────
-		new Setting(containerEl).setName("Additional features").setHeading();
+		new Setting(containerEl)
+			.setName("Fonts folder")
+			.setDesc(
+				"Optional custom folder to also scan for fonts (e.g. 'assets/fonts')."
+			)
+			.addText((text) => {
+				text.setPlaceholder("Path to an extra fonts folder");
+				text.setValue(this.plugin.settings.font_folder);
+				text.onChange(async (value) => {
+					const trimmed = value.trim();
+					this.plugin.settings.font_folder =
+						trimmed === "" ? "" : with_trailing_slash(trimmed);
+					await this.plugin.saveSettings();
+					await this.plugin.load_plugin();
+				});
+			});
+
 		this.render_extra_fonts(containerEl, options);
+
+		// ── Info & help ────────────────────────────────────────────────
+		new Setting(containerEl).setName("Info").setHeading();
+		this.render_docs(containerEl);
 		this.render_font_reference(containerEl);
+	}
+
+	// Ensure the config-dir fonts folder (and any custom folder) exist so users
+	// always have a place to drop fonts.
+	private async ensure_font_folders() {
+		const folders = [`${this.app.vault.configDir}/fonts/`];
+		if (this.plugin.settings.font_folder) {
+			folders.push(this.plugin.settings.font_folder);
+		}
+		for (const folder of folders) {
+			try {
+				if (!(await this.app.vault.adapter.exists(folder))) {
+					await this.app.vault.adapter.mkdir(folder);
+				}
+			} catch (error) {
+				console.error(error);
+			}
+		}
+	}
+
+	private render_reload(containerEl: HTMLElement) {
+		new Setting(containerEl)
+			.setName("Reload fonts")
+			.setDesc("Scan the folders again after adding or removing font files.")
+			.addButton((button) => {
+				button.setButtonText("Reload");
+				button.onClick(async () => {
+					await this.plugin.saveSettings();
+					await this.plugin.load_plugin();
+					this.display();
+				});
+			});
+	}
+
+	// Documentation kept at the end so it never distracts from picking a font.
+	private render_docs(containerEl: HTMLElement) {
+		const card = containerEl.createDiv({ cls: "custom-font-info" });
+		card.createDiv({
+			cls: "custom-font-info-title",
+			text: "Where to put your fonts",
+		});
+		card.createDiv({
+			text: "Drop your font files (.ttf, .otf, .woff, .woff2) into any of these folders — all are scanned automatically:",
+		});
+		const list = card.createEl("ul");
+		list.createEl("li", { text: "Vault root: a 'fonts' folder" });
+		list.createEl("li", {
+			text: `Config dir: '${this.app.vault.configDir}/fonts'`,
+		});
+		list.createEl("li", { text: "Custom: an extra folder you can set above" });
+
+		const doc = card.createDiv({ cls: "custom-font-doc" });
+		const p1 = doc.createEl("p");
+		p1.createEl("strong", { text: "Multiple weights: " });
+		p1.createSpan({
+			text: "add each weight as its own file (e.g. Roboto-Regular.ttf, Roboto-Bold.ttf, Roboto-BoldItalic.ttf). Files that share a family name are grouped into one font automatically, so bold and italic text pick the right file on their own.",
+		});
+		const p2 = doc.createEl("p");
+		p2.createEl("strong", { text: "Naming: " });
+		p2.createSpan({
+			text: "put the weight in the filename (Thin, ExtraLight, Light, Regular, Medium, SemiBold, Bold, ExtraBold, Black) plus Italic where relevant, so the weight is detected and labelled correctly.",
+		});
+		const p3 = doc.createEl("p");
+		p3.createEl("strong", { text: "Per-note fonts: " });
+		p3.createSpan({
+			text: "apply a font to a single note (not the whole vault) via its class in cssclasses — see 'Reuse your fonts' below.",
+		});
 	}
 
 	// Collapsed-by-default section to load fonts that aren't applied to any role,
@@ -910,7 +973,7 @@ class FontSettingTab extends PluginSettingTab {
 		// Docs: what each thing is and how to use it.
 		const doc = card.createDiv({ cls: "custom-font-doc" });
 		doc.createEl("p", {
-			text: "Use the font-family name in your own CSS or snippets, e.g. font-family: 'name'.",
+			text: "Use the font-family name in your own CSS or snippets to style anything.",
 		});
 		doc.createEl("p", {
 			text: "Apply the class to a single note by adding its name (without the dot) to cssclasses in the note's frontmatter:",
