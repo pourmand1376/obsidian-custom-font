@@ -2,60 +2,79 @@
 
 # Custom Font Loader
 
-Spice up your Obsidian notes with custom fonts! This plugin is created since currently obsidian doesn't support setting custom fonts easily. This is the case, especially in Android and IOS. If you want to set up your fonts once and make it work on all platforms (Android, Mac, Windows, Linux, IPhone) this is for you! 
-
-## Plugin Settings Page
-
-![Plugin-settings-page](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.1.6/plugin-preview.gif)
-
-![Multiple-fonts](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.3.1/multiple_fonts.gif)
-
-## Multi Font Preview
-
-![Multiple-fonts-config](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.3.1/multiple_fonts_config.gif)
-
-## New Version
-
-![Custom-font-preview](https://github.com/pourmand1376/obsidian-custom-font/releases/download/1.2.0/custom-font-preview.png)
-
-## Compatibility
-
-This plugin leverages base64 encoding to ensure maximum compatibility across platforms. The chosen font will work on all operating systems (Windows, MacOS, Linux, Android, and IOS).
-
-So no matter what device you use Obsidian on, you can customize your notes with unique font styles! This way you won't even need to install the font on your operating system. 
+Spice up your Obsidian notes with custom fonts! Obsidian doesn't make it easy to set custom fonts — especially on Android and iOS. With this plugin you set your fonts up **once** and they work everywhere: Windows, macOS, Linux, Android, and iPhone. No need to install the font on your operating system.
 
 ## To get started
 
-- Add your font files (.woff, .ttf, .woff2 and .otf) to your vault's `.obsidian/fonts` folder. 
-- Open the plugin settings and choose your desired font from the dropdown menu.
-- The selected font will now be applied across your entire vault. You can switch fonts anytime.
+1. Put your font files (`.ttf`, `.otf`, `.woff`, `.woff2`) into a `fonts` folder at your vault root, or into `.obsidian/fonts`. Both are scanned automatically (you can also point the plugin at a custom folder).
+2. Open the plugin settings and pick a font for each role you want to change.
+3. Your fonts are applied instantly, across every platform.
 
 ## Key Features
 
-- Supports .woff, .ttf, .woff2 and .otf . 
-- Simple settings menu to pick your font. Change it up anytime.
-- Applies chosen font globally to your entire vault.
-- Tested with a wide range of fonts for full compatibility.
-- Custom CSS Style Support: You can apply the font to anywhere you want!
-- Ability to set custom font on specific pages (See [#7](https://github.com/pourmand1376/obsidian-custom-font/issues/7))
+### Three independent font roles
+
+Set a different font for each part of Obsidian — or leave any of them on **Default** to keep Obsidian's own font:
+
+- **Interface** — the base font for all of Obsidian (menus, sidebars, ribbons, settings).
+- **Text** — note content in editing and reading views.
+- **Monospace** — code blocks, inline code, and frontmatter.
+
+### Font fallback chains (great for mixed scripts)
+
+Each role is an **ordered list**, not a single font. Add several fonts and drag them to reorder — the browser uses the first font that has a glyph for each character. Perfect for pairing, say, a Latin display font with a Persian/Arabic font so both render correctly in the same line.
+
+### Automatic multi-weight families
+
+Drop in the individual weight files of a family (`Roboto-Regular.ttf`, `Roboto-Bold.ttf`, `Roboto-BoldItalic.ttf`, …) and the plugin **groups them into one family automatically** by reading the weight/style from each filename. Set the family once and **bold** text uses the Bold file, *italic* uses the Italic file — the browser resolves the right weight per character. Each file's weight is shown as a colored label right where you select it.
+
+### Emoji support
+
+When you override a font, Obsidian normally drops its emoji fallback — so this plugin re-appends cross-platform emoji fonts (Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji) to every font stack. Emojis keep rendering, always.
+
+### Per-note fonts via CSS classes
+
+Every loaded font also gets a utility class, `.font-<name>`. Apply a font to a **single note** by adding the class name to `cssclasses` in the note's frontmatter:
+
+```yaml
+---
+cssclasses:
+  - font-roboto
+---
+```
+
+You can also wrap part of a note in a `<div class="font-roboto">`. The settings page lists every font's copyable **font-family name** (for your own CSS/snippets) and **class**.
+
+### Load extra fonts
+
+Only the fonts you actually use are loaded, keeping startup light. A collapsed **Load extra fonts** section lets you load additional fonts *just* to use via their CSS class, without applying them to any role.
+
+### Force style
+
+For community themes that hard-code fonts and ignore the standard variables, the **Force style** toggle adds `!important` to the fonts you applied so they win.
+
+## Compatibility
+
+This plugin leverages base64 encoding to ensure maximum compatibility across platforms. The chosen font works on all operating systems (Windows, macOS, Linux, Android, and iOS) without installing it on the device.
+
+> Note: dynamic CSS is injected via constructable stylesheets (`adoptedStyleSheets`), which requires iOS/Safari 16.4+ on mobile.
 
 ## Web-based Font Converter
 
 **[🌐 Font to Base64 CSS Converter](https://pourmand1376.github.io/obsidian-custom-font/)**
 
-Use our web-based tool to convert font files to base64-encoded CSS without installing the plugin! Perfect for users who want just the conversion functionality or experience performance issues with the full plugin.
+Convert font files to base64-encoded CSS without installing the plugin — perfect if you only want the conversion, or experience performance issues with the full plugin.
 
 Features:
-- Convert .woff, .ttf, .woff2, and .otf font files
+- Convert `.woff`, `.ttf`, `.woff2`, and `.otf` font files
 - Multiple CSS output options (Obsidian variables, custom classes, force styles)
 - Copy to clipboard or download CSS files
-- No installation required - works in any modern browser
+- No installation required — works in any modern browser
 
 ## Issues and Pull-Requests
 
-This idea of this plugin just recently came into my mind. I don't know what features would be useful to you. Issues and pull requests are highly appreciated.
+Issues and pull requests are highly appreciated — I'd love to hear which features are useful to you.
 
 # References
 
 - [Embed fonts and images in your theme - Developer Documentation](https://docs.obsidian.md/Themes/App+themes/Embed+fonts+and+images+in+your+theme)
-
