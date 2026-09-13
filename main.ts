@@ -728,7 +728,6 @@ class FontSettingTab extends PluginSettingTab {
 			cls: "custom-font-hint",
 			text: `Put your fonts in a 'fonts' folder (at your vault root), in '${this.app.vault.configDir}/fonts', or in a custom folder set below, then pick them below. New files appear after you reload.`,
 		});
-		this.render_reload(containerEl);
 		new Setting(containerEl)
 			.setName("Fonts folder")
 			.setDesc(
@@ -745,6 +744,7 @@ class FontSettingTab extends PluginSettingTab {
 					await this.plugin.load_plugin();
 				});
 			});
+		this.render_reload(containerEl);
 
 		if (options.length === 0) {
 			const warn = containerEl.createDiv({ cls: "custom-font-warning" });
