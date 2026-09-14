@@ -187,6 +187,17 @@ function css_font_type(path: string): string {
 				: "font/truetype";
 }
 
+function css_font_format(path: string): string {
+	const extension = basename(path).split(".").pop()?.toLowerCase() ?? "";
+	return extension === "woff"
+		? "woff"
+		: extension === "woff2"
+			? "woff2"
+			: extension === "otf"
+				? "opentype"
+				: "truetype";
+}
+
 // Dynamically generated CSS (font-face declarations and font-family overrides)
 // is applied through constructable stylesheets (document.adoptedStyleSheets)
 // rather than injected <style> elements, which Obsidian does not allow.
@@ -425,7 +436,7 @@ export default class FontPlugin extends Plugin {
 	font-family: '${font_family_name}';
 	font-weight: ${font_weight};
 	font-style: ${font_style};
-	src: url("${font_src}");
+	src: url("${font_src}") format("${css_font_format(font_path)}");
 	font-display: swap;
 }`
 				);
@@ -468,7 +479,7 @@ export default class FontPlugin extends Plugin {
 	font-family: '${font_family_name}';
 	font-weight: ${font_weight};
 	font-style: ${font_style};
-	src: url(data:${css_type};base64,${base64});
+	src: url(data:${css_type};base64,${base64}) format("${css_font_format(font_path)}");
 	font-display: swap;
 }`;
 				await this.app.vault.adapter.write(css_font_path, base64_css);
@@ -487,7 +498,7 @@ export default class FontPlugin extends Plugin {
 	font-family: '${font_family_name}';
 	font-weight: ${font_weight};
 	font-style: ${font_style};
-	src: url(data:${css_type};base64,${base64});
+	src: url(data:${css_type};base64,${base64}) format("${css_font_format(font_path)}");
 	font-display: swap;
 }`;
 				await this.app.vault.adapter.write(css_font_path, base64_css);
