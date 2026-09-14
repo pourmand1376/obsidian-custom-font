@@ -18,6 +18,7 @@ const DEFAULT_FONT = "Default";
 const EMOJI_FONTS = `"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`;
 
 const FONT_EXTENSIONS = ["ttf", "otf", "woff", "woff2"];
+const MAX_EMBEDDED_FONT_BYTES = 10 * 1024 * 1024;
 
 interface FontPluginSettings {
 	font_folder: string;
@@ -173,6 +174,17 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
 		binary += String.fromCharCode(bytes[i]);
 	}
 	return btoa(binary);
+}
+
+function css_font_type(path: string): string {
+	const extension = basename(path).split(".").pop()?.toLowerCase() ?? "";
+	return extension === "woff"
+		? "font/woff"
+		: extension === "woff2"
+			? "font/woff2"
+			: extension === "otf"
+				? "font/opentype"
+				: "font/truetype";
 }
 
 // Dynamically generated CSS (font-face declarations and font-family overrides)
@@ -362,11 +374,12 @@ export default class FontPlugin extends Plugin {
 
 	private async process_and_load_font(font_path: string) {
 		try {
-			// `_v2` busts caches written before @font-face gained weight/style
-			// descriptors, so upgraded vaults regenerate them.
+			// `_v3` busts caches written before large fonts started using direct
+			// resource URLs instead of embedded base64 CSS, so upgraded vaults
+			// regenerate them and stop reloading oversized cached data on startup.
 			const css_font_path = `${this.plugin_folder_path}/${basename(font_path)
 				.toLowerCase()
-				.replace(".", "_")}_v2.css`;
+				.replace(".", "_")}_v3.css`;
 
 			if (!(await this.app.vault.adapter.exists(css_font_path))) {
 				await this.convert_font_to_css(font_path, css_font_path);
@@ -395,14 +408,31 @@ export default class FontPlugin extends Plugin {
 				}, 5000);
 			}
 
-			const arrayBuffer = await this.app.vault.adapter.readBinary(font_path);
-
 			const parsed = parse_font(font_path);
 			const font_family_name = parsed.slug;
 			const font_weight = String(parsed.weightNumber);
 			const font_style = parsed.italic ? "italic" : "normal";
-			const font_extension_name: string =
-				basename(font_path).split(".").pop()?.toLowerCase() ?? "";
+			const font_src = this.app.vault.adapter.getResourcePath(font_path);
+			const stat = await this.app.vault.adapter.stat(font_path);
+
+			if (stat && stat.size > MAX_EMBEDDED_FONT_BYTES) {
+				console.warn(
+					`Font ${font_path} is ${stat.size} bytes; using direct resource URL instead of embedded base64 CSS.`
+				);
+				await this.app.vault.adapter.write(
+					css_font_path,
+					`@font-face{
+	font-family: '${font_family_name}';
+	font-weight: ${font_weight};
+	font-style: ${font_style};
+	src: url("${font_src}");
+	font-display: swap;
+}`
+				);
+				return;
+			}
+
+			const arrayBuffer = await this.app.vault.adapter.readBinary(font_path);
 
 			// Use CSS Font Loading API for better performance
 			const fontBlob = new Blob([arrayBuffer]);
@@ -432,9 +462,7 @@ export default class FontPlugin extends Plugin {
 
 				// Still create CSS file for backward compatibility
 				const base64 = arrayBufferToBase64(arrayBuffer);
-				const css_type = font_extension_name === "woff" ? "font/woff" :
-								font_extension_name === "woff2" ? "font/woff2" :
-								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
+				const css_type = css_font_type(font_path);
 
 				const base64_css = `@font-face{
 	font-family: '${font_family_name}';
@@ -453,9 +481,7 @@ export default class FontPlugin extends Plugin {
 
 				// Fallback to traditional base64 approach
 				const base64 = arrayBufferToBase64(arrayBuffer);
-				const css_type = font_extension_name === "woff" ? "font/woff" :
-								font_extension_name === "woff2" ? "font/woff2" :
-								font_extension_name === "otf" ? "font/opentype" : "font/truetype";
+				const css_type = css_font_type(font_path);
 
 				const base64_css = `@font-face{
 	font-family: '${font_family_name}';
