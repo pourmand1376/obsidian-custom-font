@@ -391,8 +391,10 @@ export default class FontPlugin extends Plugin {
 			const css_font_path = `${this.plugin_folder_path}/${basename(font_path)
 				.toLowerCase()
 				.replace(".", "_")}_v3.css`;
+			const stat = await this.app.vault.adapter.stat(font_path);
+			const oversized = stat !== null && stat.size > MAX_EMBEDDED_FONT_BYTES;
 
-			if (!(await this.app.vault.adapter.exists(css_font_path))) {
+			if (oversized || !(await this.app.vault.adapter.exists(css_font_path))) {
 				await this.convert_font_to_css(font_path, css_font_path);
 			}
 			await this.load_font(css_font_path);
